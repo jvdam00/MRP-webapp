@@ -1,0 +1,1096 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>MRP System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+
+/* ── RESET ───────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { -webkit-text-size-adjust: 100%; }
+
+/* ── TOKENS ──────────────────────────────────────────────────── */
+:root {
+  --bg:        #F3F5F3;
+  --bg2:       #E8ECE8;
+  --bg3:       #DCE2DC;
+  --surface:   #FFFFFF;
+  --border:    #CDD5CD;
+  --border2:   #B8C4B8;
+
+  --text:      #161C16;
+  --text2:     #3D5C45;
+  --text3:     #7A9480;
+
+  --green:     #4ADE80;
+  --green-dim: #D2F0DC;
+  --green-txt: #165C2E;
+  --red:       #F87171;
+  --red-dim:   #FADADD;
+  --red-txt:   #7A1A1A;
+  --amber:     #FBBF24;
+  --amber-dim: #FEF3CD;
+  --amber-txt: #6B4200;
+  --blue:      #60A5FA;
+  --blue-dim:  #DDEEFF;
+  --blue-txt:  #1A4E8C;
+
+  --accent:    #4ADE80;
+  --accent-fg: #0A1A0A;
+
+  --font-head: 'Syne', sans-serif;
+  --font-body: 'Inter', sans-serif;
+  --r:   10px;
+  --r-sm: 7px;
+
+  --nav-w: 180px;  /* sidebar width on desktop */
+}
+
+/* ── BASE ────────────────────────────────────────────────────── */
+body {
+  font-family: var(--font-body);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100dvh;
+}
+
+::-webkit-scrollbar { width: 3px; height: 3px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+/* ── SHELL: mobile = column, desktop = row ───────────────────── */
+.shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+/* ── TOPBAR (mobile only) ────────────────────────────────────── */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 16px 0;
+  background: var(--bg);
+  position: sticky; top: 0; z-index: 50;
+}
+.topbar-title {
+  font-family: var(--font-head);
+  font-size: 22px; font-weight: 800;
+  letter-spacing: -0.5px; line-height: 1;
+}
+.topbar-title span { color: var(--accent); }
+.topbar-sub {
+  font-size: 11px; color: var(--text3);
+  margin-top: 3px;
+  display: flex; align-items: center; gap: 5px;
+}
+.sync-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--text3); flex-shrink: 0;
+  transition: background 0.3s;
+}
+.sync-dot.live { background: var(--green); box-shadow: 0 0 6px var(--green); }
+.refresh-btn {
+  width: 34px; height: 34px; border-radius: 50%;
+  background: var(--surface); border: 1px solid var(--border);
+  color: var(--text2); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.15s;
+}
+.refresh-btn:hover { background: var(--bg3); }
+.refresh-btn svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 2; }
+
+/* ── TAB NAV: icon + label buttons ──────────────────────────── */
+/* Mobile: horizontal strip below topbar */
+.tabnav {
+  display: flex;
+  flex-direction: row;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  scrollbar-width: none;
+  flex-shrink: 0;
+}
+.tabnav::-webkit-scrollbar { display: none; }
+
+.tab-btn {
+  flex: 1;
+  min-width: 56px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 10px 6px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text3);
+  font-family: var(--font-body);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  transition: color 0.15s, background 0.15s;
+  white-space: nowrap;
+  position: relative;
+}
+.tab-btn svg {
+  width: 20px; height: 20px;
+  stroke: currentColor; fill: none; stroke-width: 1.75;
+}
+.tab-btn::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 20%; right: 20%;
+  height: 2px;
+  background: var(--accent);
+  border-radius: 2px 2px 0 0;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.tab-btn.active { color: var(--accent); }
+.tab-btn.active::after { opacity: 1; }
+
+/* ── MAIN CONTENT ────────────────────────────────────────────── */
+.main {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+}
+
+/* ── SECTIONS ────────────────────────────────────────────────── */
+.section { display: none; padding: 16px; }
+.section.visible { display: block; animation: fadeIn 0.18s ease; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; } }
+
+/* ── DESKTOP: sidebar ────────────────────────────────────────── */
+@media (min-width: 640px) {
+  .shell {
+    flex-direction: row;
+    align-items: stretch;
+  }
+
+  /* hide mobile topbar */
+  .topbar { display: none; }
+
+  /* sidebar */
+  .tabnav {
+    flex-direction: column;
+    width: var(--nav-w);
+    flex-shrink: 0;
+    border-bottom: none;
+    border-right: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    height: 100dvh;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-top: 0;
+  }
+
+  /* logo at top of sidebar */
+  .tabnav::before {
+    content: 'MRP.';
+    display: block;
+    font-family: var(--font-head);
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--text);
+    padding: 24px 20px 20px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 8px;
+    flex-shrink: 0;
+    letter-spacing: -0.5px;
+  }
+
+  /* sidebar sync status */
+  .sidebar-sync {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 20px 16px;
+    font-size: 11px;
+    color: var(--text3);
+  }
+
+  /* sidebar buttons: horizontal layout */
+  .tab-btn {
+    flex: none;
+    width: 100%;
+    flex-direction: row;
+    justify-content: flex-start;
+    align-items: center;
+    gap: 10px;
+    padding: 11px 20px;
+    font-size: 13px;
+    text-transform: none;
+    letter-spacing: 0.01em;
+    font-weight: 500;
+    border-radius: 0;
+  }
+  .tab-btn::after {
+    top: 0; bottom: 0;
+    left: 0; right: auto;
+    width: 3px; height: auto;
+    border-radius: 0 2px 2px 0;
+  }
+
+  /* main content */
+  .main { overflow-y: auto; }
+  .section { padding: 28px 32px; }
+  .stat-grid { grid-template-columns: repeat(4, 1fr); }
+}
+
+/* ── STAT GRID ───────────────────────────────────────────────── */
+.stat-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 14px;
+  position: relative;
+  overflow: hidden;
+}
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; height: 2px;
+  background: var(--accent);
+  opacity: 0.4;
+}
+.stat-card.warn::before { background: var(--red); opacity: 0.8; }
+.stat-label {
+  font-size: 10px; font-weight: 600;
+  color: var(--text3); text-transform: uppercase;
+  letter-spacing: 0.08em; margin-bottom: 8px;
+}
+.stat-val {
+  font-family: var(--font-head);
+  font-size: 28px; font-weight: 700;
+  color: var(--text); letter-spacing: -1px; line-height: 1;
+}
+.stat-val.alert { color: var(--red); }
+.stat-sub { font-size: 10px; color: var(--text3); margin-top: 4px; }
+
+/* ── CARDS ───────────────────────────────────────────────────── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 16px;
+  margin-bottom: 12px;
+}
+.card-title {
+  font-family: var(--font-head);
+  font-size: 12px; font-weight: 700;
+  color: var(--text3); text-transform: uppercase;
+  letter-spacing: 0.1em; margin-bottom: 14px;
+}
+.card-sub {
+  font-size: 12px; color: var(--text3);
+  margin-top: -10px; margin-bottom: 14px; line-height: 1.5;
+}
+.card-header {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  margin-bottom: 14px;
+}
+.card-header .card-title { margin-bottom: 0; }
+
+/* ── STOCK LIST ──────────────────────────────────────────────── */
+.stock-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.stock-row:last-child { border-bottom: none; }
+.stock-indicator { width: 3px; height: 34px; border-radius: 2px; flex-shrink: 0; }
+.ind-ok   { background: var(--green); }
+.ind-warn { background: var(--amber); }
+.ind-low  { background: var(--red); }
+.stock-info { flex: 1; min-width: 0; }
+.stock-name {
+  font-size: 13px; font-weight: 500;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.stock-loc {
+  font-size: 10px; color: var(--text3); margin-top: 2px;
+  font-family: 'Courier New', monospace; letter-spacing: 0.04em;
+}
+.bar-wrap { height: 3px; background: var(--bg2); border-radius: 2px; overflow: hidden; margin-top: 5px; }
+.bar-fill { height: 100%; border-radius: 2px; transition: width 0.5s ease; }
+.stock-right { text-align: right; flex-shrink: 0; }
+.stock-qty {
+  font-family: var(--font-head);
+  font-size: 18px; font-weight: 700; line-height: 1;
+}
+.stock-unit { font-size: 10px; color: var(--text3); margin-top: 2px; }
+
+/* ── BADGES ──────────────────────────────────────────────────── */
+.badge {
+  display: inline-block; font-size: 9px; font-weight: 700;
+  padding: 2px 6px; border-radius: 4px;
+  letter-spacing: 0.06em; text-transform: uppercase; margin-top: 3px;
+}
+.badge-ok   { background: var(--green-dim); color: var(--green-txt); }
+.badge-low  { background: var(--red-dim);   color: var(--red-txt); }
+.badge-warn { background: var(--amber-dim); color: var(--amber-txt); }
+.badge-info { background: var(--blue-dim);  color: var(--blue-txt); }
+
+/* ── FORMS ───────────────────────────────────────────────────── */
+.form-group { margin-bottom: 12px; }
+.form-label {
+  font-size: 10px; font-weight: 600; color: var(--text3);
+  text-transform: uppercase; letter-spacing: 0.08em;
+  display: block; margin-bottom: 6px;
+}
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+input[type=text], input[type=number], select, textarea {
+  width: 100%; padding: 10px 12px;
+  background: var(--surface); color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  font-family: var(--font-body); font-size: 14px;
+  outline: none;
+  transition: border-color 0.15s, background 0.15s;
+  -webkit-appearance: none;
+}
+input:focus, select:focus, textarea:focus {
+  border-color: var(--accent); background: var(--bg2);
+}
+input::placeholder { color: var(--text3); }
+select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237A9480' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 30px;
+}
+textarea { resize: none; min-height: 70px; }
+
+/* ── BUTTONS ─────────────────────────────────────────────────── */
+.btn {
+  width: 100%; padding: 13px;
+  border-radius: var(--r-sm);
+  font-family: var(--font-head);
+  font-size: 13px; font-weight: 700;
+  letter-spacing: 0.04em; text-transform: uppercase;
+  cursor: pointer; border: none;
+  transition: opacity 0.15s, transform 0.1s;
+}
+.btn:active { transform: scale(0.98); }
+.btn:disabled { opacity: 0.35; cursor: default; }
+.btn-primary { background: var(--accent); color: var(--accent-fg); }
+.btn-primary:hover:not(:disabled) { opacity: 0.85; }
+.btn-ghost {
+  background: transparent; color: var(--text2);
+  border: 1px solid var(--border); margin-top: 8px;
+}
+.btn-ghost:hover:not(:disabled) { background: var(--bg2); border-color: var(--border2); }
+
+/* ── MESSAGES ────────────────────────────────────────────────── */
+.msg-box {
+  font-size: 12px; padding: 10px 12px;
+  border-radius: var(--r-sm); margin: 8px 0;
+  display: none; line-height: 1.5; font-weight: 500;
+}
+.msg-ok      { background: var(--green-dim); color: var(--green-txt); display: block; }
+.msg-err     { background: var(--red-dim);   color: var(--red-txt);   display: block; }
+.msg-loading { background: var(--bg2);       color: var(--text2);     display: block; }
+
+/* ── PROJECTS ────────────────────────────────────────────────── */
+.proj-row {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+}
+.proj-row:last-child { border-bottom: none; }
+.proj-header { display: flex; align-items: center; justify-content: space-between; }
+.proj-id {
+  font-family: 'Courier New', monospace;
+  font-size: 10px; color: var(--text3); letter-spacing: 0.05em;
+}
+.proj-name { font-size: 13px; font-weight: 500; margin-top: 3px; }
+.proj-meta { font-size: 11px; color: var(--text3); margin-top: 3px; }
+
+/* ── AI BUTTONS ──────────────────────────────────────────────── */
+.ai-btn {
+  width: 100%; padding: 12px 14px;
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  font-family: var(--font-body); font-size: 13px;
+  font-weight: 500; color: var(--text2);
+  cursor: pointer; text-align: left;
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 8px; transition: all 0.15s;
+}
+.ai-btn:hover { background: var(--bg2); color: var(--text); border-color: var(--border2); }
+.ai-btn svg { width: 15px; height: 15px; stroke: var(--text3); fill: none; stroke-width: 2; flex-shrink: 0; }
+.ai-hint {
+  font-size: 12px; color: var(--text3);
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: var(--r-sm); padding: 10px 12px;
+  margin-bottom: 12px; line-height: 1.6;
+}
+
+/* ── CSV DROPZONE ────────────────────────────────────────────── */
+#csv-dropzone {
+  border: 1.5px dashed var(--border2);
+  border-radius: var(--r); padding: 32px 16px;
+  text-align: center; cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+#csv-dropzone:hover { border-color: var(--accent); background: rgba(74,222,128,0.04); }
+.drop-icon { font-size: 32px; margin-bottom: 8px; }
+.drop-label { font-size: 14px; font-weight: 500; color: var(--text2); }
+.drop-sub   { font-size: 12px; color: var(--text3); margin-top: 4px; }
+
+/* ── CSV TABLE ───────────────────────────────────────────────── */
+#csv-table { width: 100%; border-collapse: collapse; font-size: 11px; min-width: 480px; }
+#csv-table th {
+  padding: 7px 8px; background: var(--bg2);
+  font-size: 10px; font-weight: 600; color: var(--text3);
+  text-transform: uppercase; letter-spacing: 0.06em;
+  border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap;
+}
+#csv-table td {
+  padding: 7px 8px; color: var(--text2);
+  border-bottom: 1px solid var(--border); white-space: nowrap;
+}
+#csv-table tr:last-child td { border-bottom: none; }
+#csv-table tr:nth-child(odd) td { background: var(--bg); }
+
+/* ── EXPORT TABLE ────────────────────────────────────────────── */
+.export-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 6px; }
+.export-table th { padding: 7px 8px; background: var(--bg2); font-size: 10px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid var(--border); text-align: left; }
+.export-table td { padding: 7px 8px; border-bottom: 1px solid var(--border); }
+.export-table tr:last-child td { border-bottom: none; }
+
+/* ── MISC ────────────────────────────────────────────────────── */
+.divider { height: 1px; background: var(--border); margin: 14px 0; }
+.empty { color: var(--text3); font-size: 13px; text-align: center; padding: 24px 0; }
+.spinner {
+  display: inline-block; width: 13px; height: 13px;
+  border: 2px solid var(--border2); border-top-color: var(--accent);
+  border-radius: 50%; animation: spin 0.7s linear infinite;
+  vertical-align: -2px; margin-right: 6px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- ── MOBILE TOPBAR ─────────────────────────────────────── -->
+  <div class="topbar">
+    <div>
+      <div class="topbar-title">MRP<span>.</span></div>
+      <div class="topbar-sub">
+        <span class="sync-dot" id="sync-dot"></span>
+        <span id="last-sync">Connecting...</span>
+      </div>
+    </div>
+    <button class="refresh-btn" onclick="refreshAll()" title="Refresh">
+      <svg viewBox="0 0 24 24"><path d="M4 4v5h5M20 20v-5h-5"/><path d="M4 9a8 8 0 0114.93-2.69M20 15a8 8 0 01-14.93 2.69"/></svg>
+    </button>
+  </div>
+
+  <!-- ── TAB NAV ───────────────────────────────────────────── -->
+  <nav class="tabnav">
+
+    <!-- Desktop sync status (inside sidebar) -->
+    <div class="sidebar-sync" id="sidebar-sync">
+      <span class="sync-dot" id="sync-dot-desk"></span>
+      <span id="last-sync-desk">Connecting...</span>
+      <button onclick="refreshAll()" style="margin-left:auto;background:none;border:none;cursor:pointer;color:var(--text3);display:flex;align-items:center">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4v5h5M20 20v-5h-5"/><path d="M4 9a8 8 0 0114.93-2.69M20 15a8 8 0 01-14.93 2.69"/></svg>
+      </button>
+    </div>
+
+    <button class="tab-btn active" onclick="switchTab('home',this)">
+      <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      Home
+    </button>
+    <button class="tab-btn" onclick="switchTab('book-in',this)">
+      <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      Receive
+    </button>
+    <button class="tab-btn" onclick="switchTab('book-project',this)">
+      <svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>
+      Project
+    </button>
+    <button class="tab-btn" onclick="switchTab('projects',this)">
+      <svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/></svg>
+      Projects
+    </button>
+    <button class="tab-btn" onclick="switchTab('ai',this)">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+      AI
+    </button>
+    <button class="tab-btn" onclick="switchTab('push-docs',this)">
+      <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+      Import
+    </button>
+    <button class="tab-btn" onclick="switchTab('export',this)">
+      <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Export
+    </button>
+  </nav>
+
+  <!-- ── MAIN CONTENT ──────────────────────────────────────── -->
+  <div class="main">
+
+    <!-- HOME -->
+    <div id="tab-home" class="section visible">
+      <div class="stat-grid" style="margin-top:4px">
+        <div class="stat-card">
+          <div class="stat-label">Total items</div>
+          <div class="stat-val" id="s-total">—</div>
+        </div>
+        <div class="stat-card warn">
+          <div class="stat-label">Low stock</div>
+          <div class="stat-val alert" id="s-low">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Stock value</div>
+          <div class="stat-val" id="s-value" style="font-size:18px;padding-top:4px">—</div>
+          <div class="stat-sub">acquisition price</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Below min</div>
+          <div class="stat-val" id="s-pct">—</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RECEIVE / BOOK IN -->
+    <div id="tab-book-in" class="section">
+      <div class="ai-hint">💡 Tip: forward a packing list or invoice to Claude in this chat to book it in automatically.</div>
+      <div class="card">
+        <div class="card-title">Receive stock</div>
+        <div class="form-group">
+          <label class="form-label">Item ID</label>
+          <input type="text" id="bi-itemid" placeholder="ITM-001">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Qty</label>
+            <input type="number" id="bi-qty" placeholder="0" min="0">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Unit price (€)</label>
+            <input type="number" id="bi-price" placeholder="0,00" step="0.01">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Source document</label>
+          <input type="text" id="bi-doc" placeholder="INV-2026-042 / PL-011">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Notes</label>
+          <input type="text" id="bi-notes" placeholder="Optional">
+        </div>
+        <div class="msg-box" id="bi-msg"></div>
+        <button class="btn btn-primary" onclick="doBookIn()">Book in</button>
+      </div>
+    </div>
+
+    <!-- BOOK TO PROJECT -->
+    <div id="tab-book-project" class="section">
+      <div class="card">
+        <div class="card-title">Book to project</div>
+        <div class="form-group">
+          <label class="form-label">Project ID</label>
+          <input type="text" id="bp-project" placeholder="PRJ-001">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Item ID</label>
+          <input type="text" id="bp-itemid" placeholder="ITM-001">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Qty</label>
+            <input type="number" id="bp-qty" placeholder="0" min="0">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Unit price (€)</label>
+            <input type="number" id="bp-price" placeholder="auto" step="0.01">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Notes</label>
+          <input type="text" id="bp-notes" placeholder="Optional">
+        </div>
+        <div class="msg-box" id="bp-msg"></div>
+        <button class="btn btn-primary" onclick="doBookProject()">Book to project</button>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="card">
+        <div class="card-title">Export materials</div>
+        <div class="card-sub">Billed / unbilled per project</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Project ID</label>
+            <input type="text" id="exp-project" placeholder="PRJ-001">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Filter</label>
+            <select id="exp-filter">
+              <option value="ALL">All</option>
+              <option value="UNBILLED">Unbilled</option>
+              <option value="BILLED">Billed</option>
+            </select>
+          </div>
+        </div>
+        <div class="msg-box" id="exp-msg"></div>
+        <button class="btn btn-ghost" onclick="doExport()">Export ↗</button>
+      </div>
+    </div>
+
+    <!-- PROJECTS -->
+    <div id="tab-projects" class="section">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Active projects</div>
+          <span style="font-size:11px;color:var(--text3)" id="proj-count">—</span>
+        </div>
+        <div id="proj-list"><div class="empty"><span class="spinner"></span>Loading...</div></div>
+      </div>
+    </div>
+
+    <!-- AI ASSIST -->
+    <div id="tab-ai" class="section">
+      <div class="ai-hint">These buttons send pre-filled prompts to Claude, which will call your Google Sheets API and respond with live data.</div>
+      <div class="card">
+        <div class="card-title">Quick actions</div>
+        <button class="ai-btn" onclick="sendPrompt('Show me a full stock overview including items below minimum stock level. Use the MRP API URL: '+API)">
+          <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+          Stock overview
+        </button>
+        <button class="ai-btn" onclick="sendPrompt('List all active projects and their unbilled materials total. MRP API: '+API)">
+          <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          Unbilled per project
+        </button>
+        <button class="ai-btn" onclick="sendPrompt('Which items are below their minimum stock level? List them with location codes. MRP API: '+API)">
+          <svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          Low stock alerts
+        </button>
+        <button class="ai-btn" onclick="sendPrompt('I want to add a new item to the MRP system. Please ask me for the details and then add it via the API: '+API)">
+          <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Add new item
+        </button>
+        <button class="ai-btn" onclick="sendPrompt('I have a packing list or invoice. Please ask me to share it, extract all line items and book them into stock using the MRP API: '+API)">
+          <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Process invoice / packing list
+        </button>
+      </div>
+    </div>
+
+    <!-- IMPORT CSV -->
+    <div id="tab-push-docs" class="section">
+      <div class="card">
+        <div class="card-title">Import CSV</div>
+        <div class="card-sub">Expected columns: Type of file · Supplier · Order Number · Document number · Document Date · Position · Item ID · Quantity · Unit · Total Value</div>
+        <div id="csv-dropzone"
+          onclick="document.getElementById('csv-file-input').click()"
+          ondragover="event.preventDefault();this.style.borderColor='var(--accent)';this.style.background='rgba(74,222,128,0.04)'"
+          ondragleave="this.style.borderColor='';this.style.background=''"
+          ondrop="handleCsvDrop(event)">
+          <div class="drop-icon">📄</div>
+          <div class="drop-label">Tap to select a CSV file</div>
+          <div class="drop-sub">or drag &amp; drop here</div>
+        </div>
+        <input type="file" id="csv-file-input" accept=".csv,text/csv" style="display:none" onchange="handleCsvFile(this.files[0])">
+      </div>
+
+      <div id="csv-preview-wrap" style="display:none">
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title" id="csv-preview-title">Preview</div>
+              <div style="font-size:11px;color:var(--text3);margin-top:2px" id="csv-preview-sub"></div>
+            </div>
+            <button onclick="clearCsv()" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--text3);line-height:1">✕</button>
+          </div>
+          <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:var(--r-sm);border:1px solid var(--border)">
+            <table id="csv-table"></table>
+          </div>
+        </div>
+        <div class="msg-box" id="pd-msg"></div>
+        <button class="btn btn-primary" id="pd-btn" onclick="pushCsv()">Push to MRP</button>
+      </div>
+    </div>
+
+    <!-- EXPORT / DOWNLOAD -->
+    <div id="tab-export" class="section">
+      <div class="card">
+        <div class="card-title">Download spreadsheet data</div>
+        <div class="card-sub">Haalt alle sheets op via de API en biedt ze aan als CSV-bestanden (puntkomma-gescheiden, UTF-8 met BOM voor Excel).</div>
+        <div class="msg-box" id="sheet-dl-msg"></div>
+        <button class="btn btn-primary" onclick="fetchExportData()">Ophalen</button>
+      </div>
+      <div id="export-results" style="display:none">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Sheets</div>
+            <button class="btn btn-ghost" style="width:auto;padding:6px 14px;margin:0" onclick="downloadAllSheets()">Download all ↓</button>
+          </div>
+          <table class="export-table">
+            <thead><tr><th>Sheet</th><th>Rijen</th><th></th></tr></thead>
+            <tbody id="export-sheet-list"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /main -->
+</div><!-- /shell -->
+
+<script>
+const API = "https://script.google.com/macros/s/AKfycbyhztxQN00AW362iY-ELXy3zwWY4C67mFxwocs6fkQr7NhtCFU5LYZqxrTZETnub27Q/exec";
+
+async function call(body) {
+  const r = await fetch(API, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain" },
+    body: JSON.stringify(body),
+    redirect: "follow"
+  });
+  if (!r.ok) throw new Error("HTTP " + r.status);
+  const json = await r.json();
+  // Apps Script wraps in { ok, data } — pass through as-is
+  return json;
+}
+
+function switchTab(name, btn) {
+  document.querySelectorAll(".section").forEach(s => s.classList.remove("visible"));
+  document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+  document.getElementById("tab-" + name).classList.add("visible");
+  btn.classList.add("active");
+}
+
+function fmtEur(n) {
+  return "€\u202f" + Number(n).toLocaleString("nl-NL", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function showMsg(id, text, type) {
+  const el = document.getElementById(id);
+  el.className = "msg-box msg-" + type;
+  el.textContent = text;
+}
+
+function setSyncStatus(ok) {
+  const time = new Date().toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" });
+  const text = ok ? "Synced " + time : "Sync failed";
+  document.getElementById("last-sync").textContent = text;
+  document.getElementById("last-sync-desk").textContent = text;
+  ["sync-dot", "sync-dot-desk"].forEach(id => {
+    const el = document.getElementById(id);
+    if (ok) { el.classList.add("live"); setTimeout(() => el.classList.remove("live"), 2000); }
+  });
+}
+
+async function loadStock() {
+  try {
+    const res = await call({ action: "getStock" });
+    if (!res.ok) throw new Error(res.error);
+    const items = res.data;
+    document.getElementById("s-total").textContent = items.length;
+    const low = items.filter(i => i.below_minimum);
+    document.getElementById("s-low").textContent = low.length;
+    const val = items.reduce((s, i) => s + (i.current_stock * i.acquisition_price), 0);
+    document.getElementById("s-value").textContent = fmtEur(val);
+    document.getElementById("s-pct").textContent = items.length
+      ? Math.round(low.length / items.length * 100) + "%" : "0%";
+    setSyncStatus(true);
+  } catch(e) {
+    setSyncStatus(false);
+  }
+}
+
+async function loadProjects() {
+  try {
+    const res = await call({ action: "getProjects" });
+    if (!res.ok) throw new Error(res.error);
+    const active = res.data.filter(p => p.status === "Active");
+    document.getElementById("proj-count").textContent = active.length + " active";
+    const list = document.getElementById("proj-list");
+    if (!active.length) { list.innerHTML = '<div class="empty">No active projects.</div>'; return; }
+    list.innerHTML = active.map(p => `
+      <div class="proj-row" onclick="sendPrompt('Show me all unbilled materials for project ${p.project_id} (${p.name}). MRP API: ${API}')">
+        <div class="proj-header">
+          <span class="proj-id">${p.project_id}</span>
+          <span class="badge badge-info">${p.status}</span>
+        </div>
+        <div class="proj-name">${p.name}</div>
+        <div class="proj-meta">${p.client}</div>
+      </div>`).join("");
+  } catch(e) {
+    document.getElementById("proj-list").innerHTML = `<div class="empty" style="color:var(--red-txt)">Error: ${e.message}</div>`;
+  }
+}
+
+async function doBookIn() {
+  const btn = event.target;
+  const itemId = document.getElementById("bi-itemid").value.trim();
+  const qty    = parseFloat(document.getElementById("bi-qty").value);
+  const price  = parseFloat(document.getElementById("bi-price").value) || 0;
+  const doc    = document.getElementById("bi-doc").value.trim();
+  const notes  = document.getElementById("bi-notes").value.trim();
+  if (!itemId || !qty) { showMsg("bi-msg", "Fill in item ID and qty.", "err"); return; }
+  btn.disabled = true;
+  showMsg("bi-msg", "Booking...", "loading");
+  try {
+    const res = await call({ action: "bookIn", item_id: itemId, qty, unit_price: price, source_doc: doc, notes, booked_by: "phone" });
+    if (!res.ok) throw new Error(res.error);
+    showMsg("bi-msg", "Booked! Movement ID: " + res.data.movement_id, "ok");
+    ["bi-itemid","bi-qty","bi-price","bi-doc","bi-notes"].forEach(id => document.getElementById(id).value = "");
+  } catch(e) { showMsg("bi-msg", "Error: " + e.message, "err"); }
+  btn.disabled = false;
+}
+
+async function doBookProject() {
+  const btn = event.target;
+  const projectId = document.getElementById("bp-project").value.trim();
+  const itemId    = document.getElementById("bp-itemid").value.trim();
+  const qty       = parseFloat(document.getElementById("bp-qty").value);
+  const price     = parseFloat(document.getElementById("bp-price").value) || null;
+  const notes     = document.getElementById("bp-notes").value.trim();
+  if (!projectId || !itemId || !qty) { showMsg("bp-msg", "Fill in project, item ID and qty.", "err"); return; }
+  btn.disabled = true;
+  showMsg("bp-msg", "Booking...", "loading");
+  try {
+    const body = { action: "bookToProject", project_id: projectId, item_id: itemId, qty, notes, booked_by: "phone" };
+    if (price) body.unit_price = price;
+    const res = await call(body);
+    if (!res.ok) throw new Error(res.error);
+    showMsg("bp-msg", "Booked! ID: " + res.data.booking_id, "ok");
+    ["bp-project","bp-itemid","bp-qty","bp-price","bp-notes"].forEach(id => document.getElementById(id).value = "");
+  } catch(e) { showMsg("bp-msg", "Error: " + e.message, "err"); }
+  btn.disabled = false;
+}
+
+async function doExport() {
+  const projectId = document.getElementById("exp-project").value.trim();
+  const filter    = document.getElementById("exp-filter").value;
+  if (!projectId) { showMsg("exp-msg", "Enter a project ID.", "err"); return; }
+  showMsg("exp-msg", "Fetching...", "loading");
+  try {
+    const res = await call({ action: "exportProjectMaterials", project_id: projectId, billed_filter: filter });
+    if (!res.ok) throw new Error(res.error);
+    const d = res.data;
+    const summary = `Project ${d.project_id} — ${filter} materials:\n` +
+      d.rows.map(r => `• ${r.item_id}  ${r.description}  qty:${r.qty}  €${r.total_value}  billed:${r.billed}`).join("\n") +
+      `\n\nTotal: €${d.total_value.toFixed(2)}  (${d.rows.length} lines)`;
+    sendPrompt("Here is the export data for project " + projectId + ":\n\n" + summary + "\n\nPlease format this as a clean table and summarise the totals.");
+  } catch(e) { showMsg("exp-msg", "Error: " + e.message, "err"); }
+}
+
+// ── CSV IMPORT ────────────────────────────────────────────────
+let csvRows = [];
+
+// Parse a number that may use Dutch formatting (1.234,56), no-thousands Dutch (1010,56), or plain (1234.56)
+function parseNum(raw) {
+  const s = String(raw || '').trim();
+  if (!s) return 0;
+  // Dutch with thousands separators: 1.234,56 — remove periods, swap comma→period
+  if (/^\d{1,3}(\.\d{3})+(,\d+)?$/.test(s)) return Number(s.replace(/\./g, '').replace(',', '.'));
+  // Dutch decimal without thousands separator: 1010,56 — swap comma→period
+  if (/^\d+,\d+$/.test(s)) return Number(s.replace(',', '.'));
+  // Plain integer or dot-decimal
+  return Number(s.replace(/,/g, ''));
+}
+
+function parseCsv(text) {
+  // Normalise line endings (Windows CRLF → LF), strip BOM
+  text = text.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  const firstLine = text.split('\n')[0];
+  const sep = firstLine.includes(';') ? ';' : ',';
+  return text.trim().split('\n').map(line => {
+    const cols = []; let cur = '', inQ = false;
+    for (const c of line) {
+      if (c === '"') { inQ = !inQ; }
+      else if (c === sep && !inQ) { cols.push(cur.trim()); cur = ''; }
+      else { cur += c; }
+    }
+    cols.push(cur.trim());
+    return cols;
+  });
+}
+
+function handleCsvDrop(e) {
+  e.preventDefault();
+  document.getElementById('csv-dropzone').style.borderColor = '';
+  document.getElementById('csv-dropzone').style.background = '';
+  const file = e.dataTransfer.files[0];
+  if (file) handleCsvFile(file);
+}
+
+function handleCsvFile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => renderCsvPreview(file.name, e.target.result);
+  reader.readAsText(file, 'UTF-8');
+}
+
+function renderCsvPreview(filename, text) {
+  const all = parseCsv(text);
+  if (all.length < 2) { showMsg('pd-msg', 'CSV appears empty or unreadable.', 'err'); return; }
+  const headers = all[0];
+  csvRows = all.slice(1).filter(r => r.some(c => c !== ''));
+  const th  = headers.map(h => `<th>${h}</th>`).join('');
+  const trs = csvRows.map(row => `<tr>${headers.map((_, ci) => `<td>${row[ci] ?? ''}</td>`).join('')}</tr>`).join('');
+  document.getElementById('csv-table').innerHTML = `<thead><tr>${th}</tr></thead><tbody>${trs}</tbody>`;
+  document.getElementById('csv-preview-title').textContent = filename;
+  document.getElementById('csv-preview-sub').textContent = csvRows.length + ' rows ready to push';
+  document.getElementById('csv-preview-wrap').style.display = 'block';
+  document.getElementById('pd-msg').className = 'msg-box';
+}
+
+function clearCsv() {
+  csvRows = [];
+  document.getElementById('csv-preview-wrap').style.display = 'none';
+  document.getElementById('csv-file-input').value = '';
+  document.getElementById('pd-msg').className = 'msg-box';
+}
+
+async function pushCsv() {
+  if (!csvRows.length) { showMsg('pd-msg', 'No data to push.', 'err'); return; }
+  const btn = document.getElementById('pd-btn');
+  btn.disabled = true;
+
+  // Col indices match CSV: Type;Supplier;Order Number;Document number;Document Date;Position;Item ID;Quantity;Unit;Total Value
+  const COL = { type:0, supplier:1, order_number:2, doc_number:3, doc_date:4, position:5, item_id:6, qty:7, unit:8, total_value:9 };
+  const docs = {};
+  for (const row of csvRows) {
+    // Group by type + document number so packlists and invoices are separate entries
+    const docType = (row[COL.type] || '').trim();
+    const docNum  = (row[COL.doc_number] || '').trim();
+    if (!docNum) continue;
+    const groupKey = docType + '_' + docNum;
+    if (!docs[groupKey]) {
+      docs[groupKey] = {
+        document_type:   docType,
+        supplier:        (row[COL.supplier]     || '').trim(),
+        order_number:    (row[COL.order_number] || '').trim(),
+        document_number: docNum,
+        document_date:   (row[COL.doc_date]     || '').trim(),
+        lines: []
+      };
+    }
+    // item_id: always string, strip \r and any surrounding whitespace
+    const rawId = String(row[COL.item_id] || '').replace(/\r/g, '').trim();
+    docs[groupKey].lines.push({
+      item_id:     rawId,
+      position:    (row[COL.position] || '').trim(),
+      qty:         parseNum(row[COL.qty]),
+      unit:        (row[COL.unit] || '').trim(),
+      total_value: parseNum(row[COL.total_value])
+    });
+  }
+
+  const docList = Object.values(docs);
+  const totalLines = docList.reduce((s, d) => s + d.lines.length, 0);
+
+  showMsg('pd-msg', `Sending ${totalLines} lines across ${docList.length} document(s)…`, 'loading');
+  try {
+    const res = await call({ action: 'bookStockInBulkBatch', documents: docList });
+    if (res.ok === false) throw new Error(res.error || 'API error');
+    const booked = res.data.booked;
+    showMsg('pd-msg', `✓ Done — ${booked} of ${totalLines} lines across ${docList.length} document(s).`, 'ok');
+  } catch(e) {
+    showMsg('pd-msg', 'Error: ' + e.message, 'err');
+  }
+  btn.disabled = false;
+}
+
+// Ping the API with a harmless GET to verify connectivity and update the sync indicator
+async function refreshAll() {
+  try {
+    const res = await fetch(API, { method: "GET", redirect: "follow" });
+    setSyncStatus(res.ok);
+  } catch(e) {
+    setSyncStatus(false);
+  }
+}
+
+refreshAll();
+
+// ── EXPORT / DOWNLOAD ──────────────────────────────────────────
+let exportData = {};
+
+async function fetchExportData() {
+  showMsg('sheet-dl-msg', 'Bezig met ophalen…', 'loading');
+  document.getElementById('export-results').style.display = 'none';
+  try {
+    const res = await fetch(API + '?export=all', { redirect: 'follow' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.error || 'Onbekende fout');
+    // Guard: if data is missing the deployment is probably outdated
+    if (!json.data) throw new Error('Geen exportdata ontvangen — deployment bijwerken? Ontvangen: ' + JSON.stringify(json));
+    exportData = json.data;
+    renderExportSheetList();
+    showMsg('sheet-dl-msg', Object.keys(exportData).length + ' sheets opgehaald.', 'ok');
+    document.getElementById('export-results').style.display = 'block';
+  } catch(e) {
+    showMsg('sheet-dl-msg', 'Fout: ' + e.message, 'err');
+  }
+}
+
+function renderExportSheetList() {
+  const tbody = document.getElementById('export-sheet-list');
+  tbody.innerHTML = '';
+  for (const name of Object.keys(exportData)) {
+    const tr = document.createElement('tr');
+    tr.innerHTML =
+      `<td>${name}</td>` +
+      `<td style="color:var(--text3)">${exportData[name].length}</td>` +
+      `<td><button class="btn btn-ghost" style="width:auto;padding:4px 12px;margin:0;font-size:11px" onclick="downloadSheet('${name}')">CSV ↓</button></td>`;
+    tbody.appendChild(tr);
+  }
+}
+
+// Convert an array-of-rows to semicolon-delimited CSV with UTF-8 BOM
+function sheetToCsv(rows) {
+  const body = rows
+    .map(row => row.map(cell => '"' + String(cell).replace(/"/g, '""') + '"').join(';'))
+    .join('\r\n');
+  return '﻿' + body; // BOM so Excel on Windows recognises UTF-8
+}
+
+// Single-sheet download via browser blob link
+function downloadSheet(name) {
+  const rows = exportData[name];
+  if (!rows) return;
+  const blob = new Blob([sheetToCsv(rows)], { type: 'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = name + '.csv'; a.click();
+  URL.revokeObjectURL(url);
+}
+
+// Download all sheets as individual blob downloads (staggered to avoid popup blocker)
+function downloadAllSheets() {
+  const names = Object.keys(exportData);
+  if (!names.length) return;
+  names.forEach((name, i) => setTimeout(() => downloadSheet(name), i * 400));
+  showMsg('sheet-dl-msg', names.length + ' bestanden worden gedownload naar de downloadmap.', 'ok');
+}
+</script>
+</body>
+</html>
