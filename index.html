@@ -968,7 +968,7 @@ textarea { resize: none; min-height: 70px; }
           </tr>
           <tr style="border-bottom:1px solid var(--border)">
             <td style="padding:10px 0;color:var(--text3);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">Commit</td>
-            <td style="padding:10px 0;font-family:'Courier New',monospace;font-size:12px">075427f</td>
+            <td style="padding:10px 0;font-family:'Courier New',monospace;font-size:12px">3c57d8e</td>
           </tr>
           <tr style="border-bottom:1px solid var(--border)">
             <td style="padding:10px 0;color:var(--text3);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">Date</td>
@@ -976,7 +976,7 @@ textarea { resize: none; min-height: 70px; }
           </tr>
           <tr>
             <td style="padding:10px 0;color:var(--text3);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">Message</td>
-            <td style="padding:10px 0;color:var(--text2)">Claude: Enable continuous autofocus on Items tab camera</td>
+            <td style="padding:10px 0;color:var(--text2)">Claude: Select back camera by label, fall back to camera 0</td>
           </tr>
         </table>
       </div>
@@ -1322,17 +1322,19 @@ function setItemMode(mode) {
   if (mode !== 'scan') stopItemCamera();
 }
 
-// Start the camera and begin scanning frames with BarcodeDetector
+// Start the camera; auto-scan via BarcodeDetector is used when available, otherwise camera
+// shows live feed only and the user enters the EAN manually.
 async function startItemCamera() {
   const btn = document.getElementById('item-cam-btn');
   btn.disabled = true;
   try {
-    if (typeof BarcodeDetector === 'undefined')
-      throw new Error('BarcodeDetector not supported — use Chrome or Edge');
-    if (!itemDetector) {
-      const supported = await BarcodeDetector.getSupportedFormats();
-      const want = ['ean_13','ean_8','upc_a','upc_e','code_128','qr_code'];
-      itemDetector = new BarcodeDetector({ formats: want.filter(f => supported.includes(f)) });
+    // Try to initialise BarcodeDetector — non-fatal if browser does not support it
+    if (!itemDetector && typeof BarcodeDetector !== 'undefined') {
+      try {
+        const supported = await BarcodeDetector.getSupportedFormats();
+        const want = ['ean_13','ean_8','upc_a','upc_e','code_128','qr_code'];
+        itemDetector = new BarcodeDetector({ formats: want.filter(f => supported.includes(f)) });
+      } catch { itemDetector = null; }
     }
     if (itemCamStream) itemCamStream.getTracks().forEach(t => t.stop());
     // Enumerate cameras: prefer back/rear/environment label, fall back to index 0
@@ -1354,18 +1356,25 @@ async function startItemCamera() {
       try { await track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }); } catch {}
     }
     document.getElementById('item-placeholder').style.display = 'none';
-    document.getElementById('item-scan-line').style.display   = '';
     btn.textContent = 'Stop Camera';
     btn.onclick = stopItemCamera;
     btn.disabled = false;
-    // Poll every 150 ms for barcodes in the live video frame
-    itemCamInterval = setInterval(async () => {
-      if (video.readyState < 2) return;
-      try {
-        const codes = await itemDetector.detect(video);
-        if (codes.length) onItemBarcode(codes[0].rawValue);
-      } catch {}
-    }, 150);
+    if (itemDetector) {
+      // Auto-scan available: show animated scan line and poll every 150 ms
+      document.getElementById('item-scan-line').style.display = '';
+      itemCamInterval = setInterval(async () => {
+        if (video.readyState < 2) return;
+        try {
+          const codes = await itemDetector.detect(video);
+          if (codes.length) onItemBarcode(codes[0].rawValue);
+        } catch {}
+      }, 150);
+    } else {
+      // No auto-scan in this browser — show camera for visual reference, ask user to type EAN
+      document.getElementById('item-scan-line').style.display = 'none';
+      document.getElementById('item-found-card').style.display = 'block';
+      showMsg('item-book-msg', 'Auto-scan not available in this browser — enter EAN manually below.', 'loading');
+    }
   } catch(e) {
     btn.disabled = false;
     document.getElementById('item-found-card').style.display = 'block';
