@@ -718,6 +718,7 @@ textarea { resize: none; min-height: 70px; }
             <div class="scan-corners"><div class="scan-corner-br"></div></div>
             <div class="scan-anim-line" id="item-scan-line" style="display:none"></div>
             <div class="scan-flash" id="item-flash"></div>
+            <div id="item-cam-label" style="position:absolute;bottom:4px;left:6px;font-size:10px;color:rgba(255,255,255,0.75);background:rgba(0,0,0,0.4);padding:2px 6px;border-radius:3px;pointer-events:none;display:none"></div>
             <div class="scan-placeholder" id="item-placeholder">
               <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                 <rect x="4" y="4" width="2" height="16"/><rect x="8" y="4" width="3" height="16"/>
@@ -968,15 +969,15 @@ textarea { resize: none; min-height: 70px; }
           </tr>
           <tr style="border-bottom:1px solid var(--border)">
             <td style="padding:10px 0;color:var(--text3);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">Commit</td>
-            <td style="padding:10px 0;font-family:'Courier New',monospace;font-size:12px">3c57d8e</td>
+            <td style="padding:10px 0;font-family:'Courier New',monospace;font-size:12px">73796a6</td>
           </tr>
           <tr style="border-bottom:1px solid var(--border)">
             <td style="padding:10px 0;color:var(--text3);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">Date</td>
-            <td style="padding:10px 0">29-06-2026 16:32</td>
+            <td style="padding:10px 0">29-06-2026 16:48</td>
           </tr>
           <tr>
             <td style="padding:10px 0;color:var(--text3);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">Message</td>
-            <td style="padding:10px 0;color:var(--text2)">Claude: Select back camera by label, fall back to camera 0</td>
+            <td style="padding:10px 0;color:var(--text2)">Claude: Make BarcodeDetector optional — camera works on desktop without it</td>
           </tr>
         </table>
       </div>
@@ -1356,6 +1357,9 @@ async function startItemCamera() {
       try { await track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }); } catch {}
     }
     document.getElementById('item-placeholder').style.display = 'none';
+    const camLabel = document.getElementById('item-cam-label');
+    camLabel.textContent = track.label || 'Camera';
+    camLabel.style.display = '';
     btn.textContent = 'Stop Camera';
     btn.onclick = stopItemCamera;
     btn.disabled = false;
@@ -1391,6 +1395,7 @@ function stopItemCamera() {
   const ph  = document.getElementById('item-placeholder');
   if (btn) { btn.textContent = 'Start Camera'; btn.onclick = startItemCamera; btn.disabled = false; }
   if (sl)  sl.style.display = 'none';
+  const cl = document.getElementById('item-cam-label'); if (cl) cl.style.display = 'none';
   if (ph)  ph.style.display = '';
 }
 
