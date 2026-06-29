@@ -968,7 +968,7 @@ textarea { resize: none; min-height: 70px; }
           </tr>
           <tr style="border-bottom:1px solid var(--border)">
             <td style="padding:10px 0;color:var(--text3);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">Commit</td>
-            <td style="padding:10px 0;font-family:'Courier New',monospace;font-size:12px">0590447</td>
+            <td style="padding:10px 0;font-family:'Courier New',monospace;font-size:12px">afd2fd0</td>
           </tr>
           <tr style="border-bottom:1px solid var(--border)">
             <td style="padding:10px 0;color:var(--text3);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">Date</td>
@@ -976,7 +976,7 @@ textarea { resize: none; min-height: 70px; }
           </tr>
           <tr>
             <td style="padding:10px 0;color:var(--text3);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">Message</td>
-            <td style="padding:10px 0;color:var(--text2)">Claude: Add avg acquisition price to Items tab item card</td>
+            <td style="padding:10px 0;color:var(--text2)">Claude: Update API URL to deployment @28, update Info tab</td>
           </tr>
         </table>
       </div>
@@ -1413,7 +1413,7 @@ function showItemFound(item) {
   document.getElementById('item-fstock').textContent =
     item.stock !== undefined ? item.stock + (item.unit ? ' ' + item.unit : '') : 'empty';
   document.getElementById('item-fprice').textContent =
-    item.avg_price ? fmtEur(item.avg_price) : 'empty';
+    item.avg_price !== null ? fmtEur(item.avg_price) : 'empty';
   document.getElementById('item-found-card').style.display    = 'block';
   document.getElementById('item-notfound-card').style.display = 'none';
   document.getElementById('item-book-msg').className = 'msg-box';
