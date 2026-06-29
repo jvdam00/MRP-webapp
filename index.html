@@ -968,7 +968,7 @@ textarea { resize: none; min-height: 70px; }
           </tr>
           <tr style="border-bottom:1px solid var(--border)">
             <td style="padding:10px 0;color:var(--text3);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">Commit</td>
-            <td style="padding:10px 0;font-family:'Courier New',monospace;font-size:12px">384542f</td>
+            <td style="padding:10px 0;font-family:'Courier New',monospace;font-size:12px">345aa7e</td>
           </tr>
           <tr style="border-bottom:1px solid var(--border)">
             <td style="padding:10px 0;color:var(--text3);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">Date</td>
@@ -976,7 +976,7 @@ textarea { resize: none; min-height: 70px; }
           </tr>
           <tr>
             <td style="padding:10px 0;color:var(--text3);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">Message</td>
-            <td style="padding:10px 0;color:var(--text2)">Claude: Fix avg price showing empty — null for formula errors, explicit null check in frontend</td>
+            <td style="padding:10px 0;color:var(--text2)">Claude: Update API URL to deployment @29, update Info tab</td>
           </tr>
         </table>
       </div>
@@ -1341,6 +1341,12 @@ async function startItemCamera() {
     const video = document.getElementById('item-video');
     video.srcObject = itemCamStream;
     await video.play();
+    // Request continuous autofocus if the camera supports it
+    const track = itemCamStream.getVideoTracks()[0];
+    const caps  = track.getCapabilities ? track.getCapabilities() : {};
+    if (caps.focusMode?.includes('continuous')) {
+      try { await track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }); } catch {}
+    }
     document.getElementById('item-placeholder').style.display = 'none';
     document.getElementById('item-scan-line').style.display   = '';
     btn.textContent = 'Stop Camera';
