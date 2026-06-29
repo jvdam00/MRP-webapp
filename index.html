@@ -968,15 +968,15 @@ textarea { resize: none; min-height: 70px; }
           </tr>
           <tr style="border-bottom:1px solid var(--border)">
             <td style="padding:10px 0;color:var(--text3);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">Commit</td>
-            <td style="padding:10px 0;font-family:'Courier New',monospace;font-size:12px">345aa7e</td>
+            <td style="padding:10px 0;font-family:'Courier New',monospace;font-size:12px">075427f</td>
           </tr>
           <tr style="border-bottom:1px solid var(--border)">
             <td style="padding:10px 0;color:var(--text3);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">Date</td>
-            <td style="padding:10px 0">29-06-2026 16:23</td>
+            <td style="padding:10px 0">29-06-2026 16:32</td>
           </tr>
           <tr>
             <td style="padding:10px 0;color:var(--text3);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">Message</td>
-            <td style="padding:10px 0;color:var(--text2)">Claude: Update API URL to deployment @29, update Info tab</td>
+            <td style="padding:10px 0;color:var(--text2)">Claude: Enable continuous autofocus on Items tab camera</td>
           </tr>
         </table>
       </div>
@@ -1335,8 +1335,14 @@ async function startItemCamera() {
       itemDetector = new BarcodeDetector({ formats: want.filter(f => supported.includes(f)) });
     }
     if (itemCamStream) itemCamStream.getTracks().forEach(t => t.stop());
+    // Enumerate cameras: prefer back/rear/environment label, fall back to index 0
+    const tmpStream = await navigator.mediaDevices.getUserMedia({ video: true });
+    tmpStream.getTracks().forEach(t => t.stop());
+    const devices    = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'videoinput');
+    const backCamera = devices.find(d => /back|rear|environment/i.test(d.label));
+    const deviceId   = (backCamera || devices[0])?.deviceId;
     itemCamStream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'environment', width: { ideal: 1280 } }
+      video: { deviceId: deviceId ? { exact: deviceId } : undefined, width: { ideal: 1280 } }
     });
     const video = document.getElementById('item-video');
     video.srcObject = itemCamStream;
