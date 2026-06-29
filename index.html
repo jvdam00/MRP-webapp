@@ -547,6 +547,10 @@ textarea { resize: none; min-height: 70px; }
       <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
       Export
     </button>
+    <button class="tab-btn" onclick="switchTab('info',this)">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      Info
+    </button>
   </nav>
 
   <!-- ── MAIN CONTENT ──────────────────────────────────────── -->
@@ -754,6 +758,31 @@ textarea { resize: none; min-height: 70px; }
             <tbody id="export-sheet-list"></tbody>
           </table>
         </div>
+      </div>
+    </div>
+
+    <!-- INFO -->
+    <div id="tab-info" class="section">
+      <div class="card">
+        <div class="card-title">About this build</div>
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <tr style="border-bottom:1px solid var(--border)">
+            <td style="padding:10px 0;color:var(--text3);width:120px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">Project</td>
+            <td style="padding:10px 0;font-weight:500">VDA003 – Eigen MRP</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border)">
+            <td style="padding:10px 0;color:var(--text3);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">Commit</td>
+            <td style="padding:10px 0;font-family:'Courier New',monospace;font-size:12px">0b72ca8</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border)">
+            <td style="padding:10px 0;color:var(--text3);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">Date</td>
+            <td style="padding:10px 0">25-06-2026 23:20</td>
+          </tr>
+          <tr>
+            <td style="padding:10px 0;color:var(--text3);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">Message</td>
+            <td style="padding:10px 0;color:var(--text2)">Invoices working, thourough test required, copy method to packlists</td>
+          </tr>
+        </table>
       </div>
     </div>
 
