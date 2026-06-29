@@ -969,15 +969,15 @@ textarea { resize: none; min-height: 70px; }
           </tr>
           <tr style="border-bottom:1px solid var(--border)">
             <td style="padding:10px 0;color:var(--text3);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">Commit</td>
-            <td style="padding:10px 0;font-family:'Courier New',monospace;font-size:12px">73796a6</td>
+            <td style="padding:10px 0;font-family:'Courier New',monospace;font-size:12px">04389bf</td>
           </tr>
           <tr style="border-bottom:1px solid var(--border)">
             <td style="padding:10px 0;color:var(--text3);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">Date</td>
-            <td style="padding:10px 0">29-06-2026 16:48</td>
+            <td style="padding:10px 0">29-06-2026 16:58</td>
           </tr>
           <tr>
             <td style="padding:10px 0;color:var(--text3);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">Message</td>
-            <td style="padding:10px 0;color:var(--text2)">Claude: Make BarcodeDetector optional — camera works on desktop without it</td>
+            <td style="padding:10px 0;color:var(--text2)">Claude: Show active camera name as watermark in viewfinder</td>
           </tr>
         </table>
       </div>
@@ -1341,9 +1341,13 @@ async function startItemCamera() {
     // Enumerate cameras: prefer back/rear/environment label, fall back to index 0
     const tmpStream = await navigator.mediaDevices.getUserMedia({ video: true });
     tmpStream.getTracks().forEach(t => t.stop());
-    const devices    = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'videoinput');
-    const backCamera = devices.find(d => /back|rear|environment/i.test(d.label));
-    const deviceId   = (backCamera || devices[0])?.deviceId;
+    const devices = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'videoinput');
+    // Use camera 0 by default; only search for a back camera if camera 0 is the front camera
+    const cam0IsFront = /front/i.test(devices[0]?.label || '');
+    const selected  = cam0IsFront
+      ? (devices.find(d => /back|rear|environment/i.test(d.label)) || devices[0])
+      : devices[0];
+    const deviceId  = selected?.deviceId;
     itemCamStream = await navigator.mediaDevices.getUserMedia({
       video: { deviceId: deviceId ? { exact: deviceId } : undefined, width: { ideal: 1280 } }
     });
