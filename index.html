@@ -424,6 +424,36 @@ textarea { resize: none; min-height: 70px; }
 .proj-name { font-size: 13px; font-weight: 500; margin-top: 3px; }
 .proj-meta { font-size: 11px; color: var(--text3); margin-top: 3px; }
 
+/* ── FOLDER GROUPS (Projects tab) ───────────────────────────── */
+.customer-group { margin-bottom: 2px; }
+.customer-header {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 0; cursor: pointer; user-select: none;
+  font-size: 13px; font-weight: 600;
+  border-bottom: 1px solid var(--border);
+}
+.status-header {
+  display: flex; align-items: center; gap: 7px;
+  padding: 7px 0 7px 10px; cursor: pointer; user-select: none;
+  font-size: 10px; font-weight: 700; color: var(--text3);
+  text-transform: uppercase; letter-spacing: 0.08em;
+}
+.folder-arrow {
+  width: 13px; height: 13px; flex-shrink: 0;
+  stroke: currentColor; fill: none; stroke-width: 2.5;
+  transition: transform 0.18s ease;
+  transform: rotate(0deg);
+}
+.customer-header.open .folder-arrow,
+.status-header.open .folder-arrow { transform: rotate(90deg); }
+.folder-count {
+  margin-left: auto; font-size: 10px; font-weight: 600;
+  color: var(--text3); background: var(--bg2);
+  border-radius: 10px; padding: 1px 8px;
+}
+.status-body { padding-left: 10px; }
+.proj-row:last-child { border-bottom: none; }
+
 /* ── AI BUTTONS ──────────────────────────────────────────────── */
 .ai-btn {
   width: 100%; padding: 12px 14px;
@@ -772,15 +802,15 @@ textarea { resize: none; min-height: 70px; }
           </tr>
           <tr style="border-bottom:1px solid var(--border)">
             <td style="padding:10px 0;color:var(--text3);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">Commit</td>
-            <td style="padding:10px 0;font-family:'Courier New',monospace;font-size:12px">bb2360f</td>
+            <td style="padding:10px 0;font-family:'Courier New',monospace;font-size:12px">906edc8</td>
           </tr>
           <tr style="border-bottom:1px solid var(--border)">
             <td style="padding:10px 0;color:var(--text3);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">Date</td>
-            <td style="padding:10px 0">29-06-2026 13:04</td>
+            <td style="padding:10px 0">29-06-2026 13:06</td>
           </tr>
           <tr>
             <td style="padding:10px 0;color:var(--text3);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">Message</td>
-            <td style="padding:10px 0;color:var(--text2)">deleted non relevant project</td>
+            <td style="padding:10px 0;color:var(--text2)">Claude: Update Info tab to reflect latest commit (bb2360f)</td>
           </tr>
         </table>
       </div>
@@ -855,22 +885,70 @@ async function loadProjects() {
   try {
     const res = await call({ action: "getProjects" });
     if (!res.ok) throw new Error(res.error);
-    const active = res.data.filter(p => p.status === "Active");
-    document.getElementById("proj-count").textContent = active.length + " active";
+    const projects = res.data;
+
+    // Update header count with active projects only
+    const activeCount = projects.filter(p => p.status === "Active").length;
+    document.getElementById("proj-count").textContent = activeCount + " active";
+
     const list = document.getElementById("proj-list");
-    if (!active.length) { list.innerHTML = '<div class="empty">No active projects.</div>'; return; }
-    list.innerHTML = active.map(p => `
-      <div class="proj-row" onclick="sendPrompt('Show me all unbilled materials for project ${p.project_id} (${p.name}). MRP API: ${API}')">
-        <div class="proj-header">
-          <span class="proj-id">${p.project_id}</span>
-          <span class="badge badge-info">${p.status}</span>
-        </div>
-        <div class="proj-name">${p.name}</div>
-        <div class="proj-meta">${p.client}</div>
-      </div>`).join("");
+    if (!projects.length) { list.innerHTML = '<div class="empty">No projects found.</div>'; return; }
+
+    // Group by client, then by status
+    const byClient = {};
+    for (const p of projects) {
+      if (!byClient[p.client]) byClient[p.client] = {};
+      if (!byClient[p.client][p.status]) byClient[p.client][p.status] = [];
+      byClient[p.client][p.status].push(p);
+    }
+
+    list.innerHTML = Object.keys(byClient).sort().map(client => {
+      const byStatus = byClient[client];
+      const total = Object.values(byStatus).reduce((s, a) => s + a.length, 0);
+
+      // Active status first, others sorted alphabetically
+      const statusKeys = Object.keys(byStatus).sort((a, b) =>
+        a === "Active" ? -1 : b === "Active" ? 1 : a.localeCompare(b));
+
+      const statusHtml = statusKeys.map(status => {
+        const open = status === "Active";
+        const rows = byStatus[status].map(p =>
+          '<div class="proj-row" onclick="sendPrompt(\'Show me all unbilled materials for project ' + p.project_id + ' (' + p.name + '). MRP API: ' + API + '\')">' +
+          '<div class="proj-header"><span class="proj-id">' + p.project_id + '</span></div>' +
+          '<div class="proj-name">' + p.name + '</div>' +
+          (p.start_date ? '<div class="proj-meta">' + p.start_date + '</div>' : '') +
+          '</div>'
+        ).join("");
+
+        return '<div class="status-group">' +
+          '<div class="status-header' + (open ? ' open' : '') + '" onclick="toggleFolder(this)">' +
+          '<svg class="folder-arrow" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>' +
+          '<span>' + status + '</span>' +
+          '<span class="folder-count">' + byStatus[status].length + '</span>' +
+          '</div>' +
+          '<div class="status-body"' + (open ? '' : ' style="display:none"') + '>' + rows + '</div>' +
+          '</div>';
+      }).join("");
+
+      return '<div class="customer-group">' +
+        '<div class="customer-header open" onclick="toggleFolder(this)">' +
+        '<svg class="folder-arrow" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>' +
+        '<span>' + client + '</span>' +
+        '<span class="folder-count">' + total + '</span>' +
+        '</div>' +
+        '<div class="customer-body">' + statusHtml + '</div>' +
+        '</div>';
+    }).join("");
+
   } catch(e) {
-    document.getElementById("proj-list").innerHTML = `<div class="empty" style="color:var(--red-txt)">Error: ${e.message}</div>`;
+    document.getElementById("proj-list").innerHTML = '<div class="empty" style="color:var(--red-txt)">Error: ' + e.message + '</div>';
   }
+}
+
+// Toggle a folder open/closed by flipping the open class and hiding the sibling body
+function toggleFolder(header) {
+  const isOpen = header.classList.toggle("open");
+  header.nextElementSibling.style.display = isOpen ? "" : "none";
 }
 
 async function doBookIn() {
