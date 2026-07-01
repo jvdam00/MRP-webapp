@@ -614,6 +614,10 @@ textarea { resize: none; min-height: 70px; }
       <svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
       Items
     </button>
+    <button class="tab-btn" onclick="switchTab('locations',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l4-4 4 4 4-4 4 4"/><path d="M3 15l4-4 4 4 4-4 4 4"/></svg>
+      Locations
+    </button>
     <button class="tab-btn" onclick="switchTab('book-project',this)">
       <svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>
       Project
@@ -814,6 +818,73 @@ textarea { resize: none; min-height: 70px; }
 
     </div>
 
+    <!-- LOCATIONS: scan a location barcode → view items → move to another location -->
+    <div id="tab-locations" class="section">
+
+      <!-- Scan card: camera viewfinder + camera selector + manual input -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Location</div>
+          <div id="loc-mode-badge" style="font-size:11px;color:var(--accent);font-family:'Courier New',monospace"></div>
+        </div>
+        <div class="scan-vf-wrap">
+          <video id="loc-video" autoplay muted playsinline></video>
+          <div class="scan-corners"><div class="scan-corner-br"></div></div>
+          <div class="scan-anim-line" id="loc-scan-line" style="display:none"></div>
+          <div class="scan-flash" id="loc-flash"></div>
+          <div class="scan-placeholder" id="loc-placeholder">
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+              <rect x="3" y="14" width="7" height="7" rx="1"/>
+              <path d="M14 14h3v3h-3z"/><path d="M18 14h3v3h-3z"/><path d="M14 18h3v3h-3z"/><path d="M18 18h3v3h-3z"/>
+            </svg>
+            Camera not started
+          </div>
+        </div>
+        <button class="btn btn-primary" id="loc-cam-btn" onclick="startLocCamera()">Start Camera</button>
+        <div id="loc-cam-select-wrap" style="display:none;margin-top:10px">
+          <label class="form-label">Camera</label>
+          <select id="loc-cam-select" onchange="switchLocCamera()"></select>
+        </div>
+        <div id="loc-cam-status" style="display:none;font-size:11px;color:var(--text3);font-family:'Courier New',monospace;margin-top:6px"></div>
+        <div style="margin-top:12px">
+          <label class="form-label" id="loc-input-label">Or enter location manually</label>
+          <div style="display:flex;gap:8px">
+            <input type="text" id="loc-code-input" placeholder="e.g. A1-02" style="flex:1;text-transform:uppercase"
+              onkeydown="if(event.key==='Enter')handleLocManualInput()">
+            <button class="btn btn-ghost" onclick="handleLocManualInput()"
+              style="width:auto;margin:0;padding:10px 14px">Go</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Location found card: items at this location + move controls -->
+      <div id="loc-found-card" class="card" style="display:none">
+        <div class="card-header" style="margin-bottom:10px">
+          <div>
+            <div class="card-title" id="loc-found-title" style="margin:0">—</div>
+            <div id="loc-found-sub" style="font-size:11px;color:var(--text3);margin-top:2px"></div>
+          </div>
+          <button class="btn btn-ghost" id="loc-move-all-btn" onclick="startLocMove(null)"
+            style="width:auto;margin:0;padding:7px 14px;font-size:12px;display:none">Move all ↗</button>
+        </div>
+        <div id="loc-items-list"></div>
+        <div class="msg-box" id="loc-move-msg"></div>
+      </div>
+
+      <!-- Confirm card: destination occupied — shown before executing the move -->
+      <div id="loc-confirm-card" class="card" style="display:none">
+        <div class="card-title" style="color:#e6b84a;margin-bottom:6px">⚠ Location not empty</div>
+        <div id="loc-confirm-msg" class="card-sub" style="margin-bottom:10px"></div>
+        <div id="loc-confirm-list" style="margin-bottom:14px"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <button class="btn btn-ghost" style="margin:0" onclick="cancelLocMove()">Cancel</button>
+          <button class="btn btn-primary" style="margin:0" onclick="executeMoveItems()">Move anyway</button>
+        </div>
+      </div>
+
+    </div>
+
     <!-- BOOK TO PROJECT -->
     <div id="tab-book-project" class="section">
       <div class="card">
@@ -975,7 +1046,7 @@ textarea { resize: none; min-height: 70px; }
           </tr>
           <tr style="border-bottom:1px solid var(--border)">
             <td style="padding:10px 0;color:var(--text3);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">Commit</td>
-            <td style="padding:10px 0;font-family:'Courier New',monospace;font-size:12px">524541f</td>
+            <td style="padding:10px 0;font-family:'Courier New',monospace;font-size:12px">pending</td>
           </tr>
           <tr style="border-bottom:1px solid var(--border)">
             <td style="padding:10px 0;color:var(--text3);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">Date</td>
@@ -983,7 +1054,7 @@ textarea { resize: none; min-height: 70px; }
           </tr>
           <tr>
             <td style="padding:10px 0;color:var(--text3);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">Message</td>
-            <td style="padding:10px 0;color:var(--text2)">Claude: Integrate qr-scanner camera flow into Items tab (dropdown, 1920×1080, more formats)</td>
+            <td style="padding:10px 0;color:var(--text2)">Claude: Add Locations tab — scan location barcode, view items, move to another location</td>
           </tr>
         </table>
       </div>
@@ -1013,8 +1084,9 @@ function switchTab(name, btn) {
   document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
   document.getElementById("tab-" + name).classList.add("visible");
   btn.classList.add("active");
-  if (name !== 'items') stopItemCamera();       // release camera when leaving Items tab
-  if (name === 'items') loadProjectsForItems(); // populate project datalist on enter
+  if (name !== 'items')     stopItemCamera();       // release camera when leaving Items tab
+  if (name !== 'locations') stopLocCamera();        // release camera when leaving Locations tab
+  if (name === 'items')     loadProjectsForItems(); // populate project datalist on enter
 }
 
 function fmtEur(n) {
@@ -1650,6 +1722,306 @@ async function loadProjectsForItems() {
     document.getElementById('item-proj-datalist').innerHTML =
       res.data.map(p => '<option value="' + p.project_id + ' · ' + p.name + '">').join('');
   } catch {}
+}
+
+// ── LOCATIONS TAB ──────────────────────────────────────────────
+let locCamStream    = null;   // active camera stream for the Locations tab
+let locCamInterval  = null;   // BarcodeDetector scan loop handle
+let locLastScanned  = null;   // debounce: last detected barcode value
+let locCurrentCode  = null;   // location code currently shown in the found card
+let locCurrentItems = [];     // items at the current location
+let locMoveItems    = [];     // items selected for the current move operation
+let locMoveMode     = false;  // true = camera is now scanning for a destination location
+let locMoveDest     = null;   // destination code pending final confirmation
+
+// Update the small status line below the Start Camera button
+function setLocCamStatus(msg) {
+  const el = document.getElementById('loc-cam-status');
+  if (!el) return;
+  el.textContent = msg;
+  el.style.display = msg ? '' : 'none';
+}
+
+// Full init: request permission, enumerate cameras, build dropdown, start stream.
+// Reuses itemDetector if it was already created by the Items tab.
+async function startLocCamera() {
+  const btn = document.getElementById('loc-cam-btn');
+  btn.disabled = true;
+  try {
+    if (!itemDetector && typeof BarcodeDetector !== 'undefined') {
+      try {
+        setLocCamStatus('Checking supported formats…');
+        const supported = await BarcodeDetector.getSupportedFormats();
+        const want = ['ean_13','ean_8','upc_a','upc_e','code_128','code_39','code_93','itf','qr_code','data_matrix','pdf417','aztec','codabar'];
+        itemDetector = new BarcodeDetector({ formats: want.filter(f => supported.includes(f)) });
+      } catch { itemDetector = null; }
+    }
+    setLocCamStatus('Requesting camera permission…');
+    const tmp = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    tmp.getTracks().forEach(t => t.stop());
+
+    setLocCamStatus('Enumerating cameras…');
+    const devices = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'videoinput');
+    setLocCamStatus('Found ' + devices.length + ' camera(s)');
+
+    const camSelect = document.getElementById('loc-cam-select');
+    camSelect.innerHTML = '';
+    const labelNum = d => { const m = d.label.match(/\d+/g); return m ? Math.min(...m.map(Number)) : 999; };
+    const backCams = devices.filter(d => /back|rear|environment/i.test(d.label));
+    const bestBack = backCams.length > 0
+      ? backCams.reduce((a, b) => labelNum(a) <= labelNum(b) ? a : b)
+      : null;
+    devices.forEach((d, i) => {
+      const opt = document.createElement('option');
+      opt.value = d.deviceId;
+      opt.textContent = d.label || 'Camera ' + (i + 1);
+      if (bestBack ? d.deviceId === bestBack.deviceId : i === 0) opt.selected = true;
+      camSelect.appendChild(opt);
+    });
+    if (devices.length > 1) document.getElementById('loc-cam-select-wrap').style.display = '';
+
+    await startLocCameraStream(camSelect.value);
+  } catch(e) {
+    btn.disabled = false;
+    setLocCamStatus('Error: ' + e.message);
+  }
+}
+
+// Start (or switch to) a specific camera stream for the Locations tab
+async function startLocCameraStream(deviceId) {
+  if (locCamStream) locCamStream.getTracks().forEach(t => t.stop());
+  clearInterval(locCamInterval); locCamInterval = null;
+
+  setLocCamStatus('Opening camera…');
+  locCamStream = await navigator.mediaDevices.getUserMedia({
+    video: {
+      deviceId: deviceId ? { exact: deviceId } : undefined,
+      width:  { ideal: 1920 },
+      height: { ideal: 1080 },
+    }
+  });
+
+  const video = document.getElementById('loc-video');
+  video.srcObject = locCamStream;
+  await video.play();
+  setLocCamStatus('Video playing (' + video.videoWidth + '×' + video.videoHeight + ')');
+
+  const track = locCamStream.getVideoTracks()[0];
+  const caps  = track.getCapabilities ? track.getCapabilities() : {};
+  if (caps.focusMode?.includes('continuous')) {
+    try {
+      await track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] });
+      setLocCamStatus('Scanning… (autofocus on)');
+    } catch { setLocCamStatus('Scanning…'); }
+  } else {
+    setLocCamStatus('Scanning…');
+  }
+
+  document.getElementById('loc-placeholder').style.display = 'none';
+  const btn = document.getElementById('loc-cam-btn');
+  btn.textContent = 'Stop Camera';
+  btn.onclick = stopLocCamera;
+  btn.disabled = false;
+
+  if (itemDetector) {
+    document.getElementById('loc-scan-line').style.display = '';
+    locCamInterval = setInterval(async () => {
+      if (video.readyState < 2) return;
+      try {
+        const codes = await itemDetector.detect(video);
+        if (codes.length) onLocBarcode(codes[0].rawValue);
+      } catch {}
+    }, 150);
+  } else {
+    document.getElementById('loc-scan-line').style.display = 'none';
+    setLocCamStatus('Auto-scan not available — enter location manually');
+  }
+}
+
+// Called when the user picks a different camera from the dropdown
+async function switchLocCamera() {
+  locLastScanned = null;
+  try { await startLocCameraStream(document.getElementById('loc-cam-select').value); }
+  catch(e) { setLocCamStatus('Switch failed: ' + e.message); }
+}
+
+// Stop the camera and reset the scan panel to its initial state
+function stopLocCamera() {
+  clearInterval(locCamInterval); locCamInterval = null;
+  if (locCamStream) { locCamStream.getTracks().forEach(t => t.stop()); locCamStream = null; }
+  const btn = document.getElementById('loc-cam-btn');
+  const sl  = document.getElementById('loc-scan-line');
+  const ph  = document.getElementById('loc-placeholder');
+  if (btn) { btn.textContent = 'Start Camera'; btn.onclick = startLocCamera; btn.disabled = false; }
+  if (sl)  sl.style.display = 'none';
+  if (ph)  ph.style.display = '';
+  document.getElementById('loc-cam-select-wrap').style.display = 'none';
+  setLocCamStatus('');
+}
+
+// Barcode detected: route to location lookup or move destination check based on mode
+function onLocBarcode(value) {
+  if (value === locLastScanned) return;
+  locLastScanned = value;
+  const flash = document.getElementById('loc-flash');
+  flash.classList.add('active');
+  setTimeout(() => flash.classList.remove('active'), 120);
+  document.getElementById('loc-code-input').value = value;
+  if (locMoveMode) checkMoveDest(value);
+  else             lookupLocation(value);
+  setTimeout(() => { locLastScanned = null; }, 3000);
+}
+
+// Go button / Enter key — dispatches to lookup or move-dest based on current mode
+function handleLocManualInput() {
+  const val = document.getElementById('loc-code-input').value.trim().toUpperCase();
+  if (!val) return;
+  if (locMoveMode) checkMoveDest(val);
+  else             lookupLocation(val);
+}
+
+// Fetch all items at the given location code and render the found card
+async function lookupLocation(code) {
+  if (!code) return;
+  locCurrentCode = code.toUpperCase();
+  document.getElementById('loc-found-card').style.display    = 'none';
+  document.getElementById('loc-confirm-card').style.display  = 'none';
+  setLocModeLabel('');
+  try {
+    const res = await call({ action: 'getItemsByLocation', location_code: locCurrentCode });
+    if (!res.ok) throw new Error(res.error);
+    locCurrentItems = res.data;
+    renderLocFound();
+  } catch(e) {
+    document.getElementById('loc-found-card').style.display = 'block';
+    showMsg('loc-move-msg', 'Error: ' + e.message, 'err');
+  }
+}
+
+// Render the location card with items and Move buttons
+function renderLocFound() {
+  const title      = document.getElementById('loc-found-title');
+  const sub        = document.getElementById('loc-found-sub');
+  const list       = document.getElementById('loc-items-list');
+  const moveAllBtn = document.getElementById('loc-move-all-btn');
+
+  title.textContent = locCurrentCode;
+  sub.textContent   = locCurrentItems.length
+    ? locCurrentItems.length + ' item' + (locCurrentItems.length > 1 ? 's' : '') + ' at this location'
+    : 'No items at this location';
+  moveAllBtn.style.display = locCurrentItems.length ? '' : 'none';
+  document.getElementById('loc-move-msg').className = 'msg-box';
+
+  list.innerHTML = locCurrentItems.length
+    ? locCurrentItems.map((item, i) =>
+        '<div class="item-result-row" style="align-items:center">' +
+        '<div style="flex:1;min-width:0">' +
+        '<div class="item-result-id">' + item.item_id + (item.ean ? ' · ' + item.ean : '') + '</div>' +
+        '<div class="item-result-name">' + (item.name || '—') + '</div>' +
+        '<div class="item-result-meta">' +
+          (item.stock !== undefined ? item.stock + (item.unit ? ' ' + item.unit : '') : '') +
+          (item.manufacturer ? ' · ' + item.manufacturer : '') +
+        '</div>' +
+        '</div>' +
+        '<button class="btn btn-ghost" onclick="startLocMove(' + i + ')" ' +
+          'style="width:auto;margin:0;padding:5px 12px;font-size:11px;flex-shrink:0">Move ↗</button>' +
+        '</div>'
+      ).join('')
+    : '<div class="empty">Empty location</div>';
+
+  document.getElementById('loc-found-card').style.display = 'block';
+}
+
+// Update the mode indicator label in the scan card header
+function setLocModeLabel(text) {
+  const el = document.getElementById('loc-mode-badge');
+  if (el) el.textContent = text;
+}
+
+// Enter move mode. idx = null moves all items; idx = number moves only that one item.
+function startLocMove(idx) {
+  locMoveItems = (idx === null) ? [...locCurrentItems] : [locCurrentItems[idx]];
+  locMoveMode  = true;
+  locMoveDest  = null;
+  document.getElementById('loc-confirm-card').style.display = 'none';
+  document.getElementById('loc-move-msg').className = 'msg-box';
+  document.getElementById('loc-code-input').value = '';
+  document.getElementById('loc-code-input').placeholder = 'Scan or type destination…';
+  document.getElementById('loc-input-label').textContent  = 'Scan or enter destination location';
+  setLocModeLabel('→ Scan destination');
+  locLastScanned = null;
+}
+
+// Cancel a pending move and return to the location view
+function cancelLocMove() {
+  locMoveMode  = false;
+  locMoveDest  = null;
+  locMoveItems = [];
+  document.getElementById('loc-confirm-card').style.display = 'none';
+  document.getElementById('loc-code-input').value       = locCurrentCode || '';
+  document.getElementById('loc-code-input').placeholder = 'e.g. A1-02';
+  document.getElementById('loc-input-label').textContent = 'Or enter location manually';
+  setLocModeLabel('');
+  if (locCurrentCode) renderLocFound();
+}
+
+// Check whether the destination location already has items; warn or move immediately
+async function checkMoveDest(destCode) {
+  locMoveDest = destCode.toUpperCase();
+  document.getElementById('loc-confirm-card').style.display = 'none';
+  try {
+    const res = await call({ action: 'getItemsByLocation', location_code: locMoveDest });
+    if (!res.ok) throw new Error(res.error);
+    const existing = res.data;
+    if (existing.length === 0) {
+      // Destination empty — proceed without confirmation
+      await executeMoveItems();
+    } else {
+      // Destination occupied — show confirmation card with existing items listed
+      document.getElementById('loc-confirm-msg').textContent =
+        locMoveDest + ' already contains ' + existing.length + ' item' + (existing.length > 1 ? 's' : '') + '. Move anyway?';
+      document.getElementById('loc-confirm-list').innerHTML = existing.map(item =>
+        '<div class="item-result-row">' +
+        '<div style="flex:1;min-width:0">' +
+        '<div class="item-result-id">' + item.item_id + '</div>' +
+        '<div class="item-result-name">' + (item.name || '—') + '</div>' +
+        '</div></div>'
+      ).join('');
+      document.getElementById('loc-confirm-card').style.display = 'block';
+    }
+  } catch(e) {
+    showMsg('loc-move-msg', 'Error: ' + e.message, 'err');
+    document.getElementById('loc-found-card').style.display = 'block';
+  }
+}
+
+// Execute the move: call moveItemLocation for each item in locMoveItems
+async function executeMoveItems() {
+  if (!locMoveDest || !locMoveItems.length) return;
+  document.getElementById('loc-confirm-card').style.display = 'none';
+  document.getElementById('loc-found-card').style.display  = 'block';
+  showMsg('loc-move-msg', 'Moving…', 'loading');
+  const dest    = locMoveDest;
+  const moved_n = locMoveItems.length;
+  try {
+    for (const item of locMoveItems) {
+      const res = await call({ action: 'moveItemLocation', item_id: item.item_id, new_location: dest });
+      if (!res.ok) throw new Error(res.error + ' (' + item.item_id + ')');
+    }
+    // Reset move state
+    locMoveMode  = false;
+    locMoveDest  = null;
+    locMoveItems = [];
+    document.getElementById('loc-code-input').placeholder   = 'e.g. A1-02';
+    document.getElementById('loc-input-label').textContent  = 'Or enter location manually';
+    setLocModeLabel('');
+    // Reload the (now updated) location view; then restore the success message on top
+    await lookupLocation(locCurrentCode);
+    showMsg('loc-move-msg',
+      '✓ Moved ' + moved_n + ' item' + (moved_n > 1 ? 's' : '') + ' to ' + dest, 'ok');
+  } catch(e) {
+    showMsg('loc-move-msg', 'Error: ' + e.message, 'err');
+  }
 }
 
 refreshAll();
