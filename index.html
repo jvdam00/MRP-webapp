@@ -728,6 +728,12 @@ textarea { resize: none; min-height: 70px; }
             </div>
           </div>
           <button class="btn btn-primary" id="item-cam-btn" onclick="startItemCamera()">Start Camera</button>
+          <!-- Camera selector: hidden until cameras are enumerated; lets user switch cameras -->
+          <div id="item-cam-select-wrap" style="display:none;margin-top:10px">
+            <label class="form-label">Camera</label>
+            <select id="item-cam-select" onchange="switchItemCamera()"></select>
+          </div>
+          <div id="item-cam-status" style="display:none;font-size:11px;color:var(--text3);font-family:'Courier New',monospace;margin-top:6px"></div>
           <div style="margin-top:12px">
             <label class="form-label">Or enter EAN manually</label>
             <div style="display:flex;gap:8px">
@@ -969,15 +975,15 @@ textarea { resize: none; min-height: 70px; }
           </tr>
           <tr style="border-bottom:1px solid var(--border)">
             <td style="padding:10px 0;color:var(--text3);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">Commit</td>
-            <td style="padding:10px 0;font-family:'Courier New',monospace;font-size:12px">bdd33dc</td>
+            <td style="padding:10px 0;font-family:'Courier New',monospace;font-size:12px">pending</td>
           </tr>
           <tr style="border-bottom:1px solid var(--border)">
             <td style="padding:10px 0;color:var(--text3);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">Date</td>
-            <td style="padding:10px 0">30-06-2026 09:45</td>
+            <td style="padding:10px 0">01-07-2026</td>
           </tr>
           <tr>
             <td style="padding:10px 0;color:var(--text3);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">Message</td>
-            <td style="padding:10px 0;color:var(--text2)">Claude: Pick lowest-numbered back camera to select main sensor on Samsung</td>
+            <td style="padding:10px 0;color:var(--text2)">Claude: Integrate qr-scanner camera flow into Items tab (dropdown, 1920×1080, more formats)</td>
           </tr>
         </table>
       </div>
@@ -1323,77 +1329,138 @@ function setItemMode(mode) {
   if (mode !== 'scan') stopItemCamera();
 }
 
-// Start the camera; auto-scan via BarcodeDetector is used when available, otherwise camera
-// shows live feed only and the user enters the EAN manually.
+// Update the small status line below the Start Camera button
+function setItemCamStatus(msg) {
+  const el = document.getElementById('item-cam-status');
+  if (!el) return;
+  el.textContent = msg;
+  el.style.display = msg ? '' : 'none';
+}
+
+// Full init: request permission, enumerate cameras, build dropdown, then start stream.
+// Mirrors the init() flow from qr-scanner.html for reliability across devices.
 async function startItemCamera() {
   const btn = document.getElementById('item-cam-btn');
   btn.disabled = true;
   try {
-    // Try to initialise BarcodeDetector — non-fatal if browser does not support it
+    // Init BarcodeDetector with the full format list from qr-scanner.html (non-fatal if unsupported)
     if (!itemDetector && typeof BarcodeDetector !== 'undefined') {
       try {
+        setItemCamStatus('Checking supported formats…');
         const supported = await BarcodeDetector.getSupportedFormats();
-        const want = ['ean_13','ean_8','upc_a','upc_e','code_128','qr_code'];
+        const want = ['ean_13','ean_8','upc_a','upc_e','code_128','code_39','code_93','itf','qr_code','data_matrix','pdf417','aztec','codabar'];
         itemDetector = new BarcodeDetector({ formats: want.filter(f => supported.includes(f)) });
+        setItemCamStatus('Detector ready · ' + want.filter(f => supported.includes(f)).length + ' formats');
       } catch { itemDetector = null; }
     }
-    if (itemCamStream) itemCamStream.getTracks().forEach(t => t.stop());
-    // Enumerate cameras: prefer back/rear/environment label, fall back to index 0
-    const tmpStream = await navigator.mediaDevices.getUserMedia({ video: true });
-    tmpStream.getTracks().forEach(t => t.stop());
+    // Get permission first via a temporary stream so enumeration returns real labels
+    setItemCamStatus('Requesting camera permission…');
+    const tmp = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    tmp.getTracks().forEach(t => t.stop());
+
+    // Enumerate all video devices and build the camera selector dropdown
+    setItemCamStatus('Enumerating cameras…');
     const devices = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'videoinput');
-    // Among back cameras, pick the one with the lowest number in its label.
-    // Samsung labels cameras as "camera2 0, facing back", "camera2 2, facing back" etc.;
-    // the lowest-numbered one is the main sensor.
-    const labelNum  = d => { const m = d.label.match(/\d+/g); return m ? Math.min(...m.map(Number)) : 999; };
-    const backCams  = devices.filter(d => /back|rear|environment/i.test(d.label));
-    const selected  = backCams.length > 0
+    setItemCamStatus('Found ' + devices.length + ' camera(s)');
+
+    const camSelect = document.getElementById('item-cam-select');
+    camSelect.innerHTML = '';
+    // Samsung labels back cameras as "camera2 0, facing back", "camera2 2, facing back" etc.;
+    // pick the lowest-numbered one as default — it is the main sensor.
+    const labelNum = d => { const m = d.label.match(/\d+/g); return m ? Math.min(...m.map(Number)) : 999; };
+    const backCams = devices.filter(d => /back|rear|environment/i.test(d.label));
+    const bestBack = backCams.length > 0
       ? backCams.reduce((a, b) => labelNum(a) <= labelNum(b) ? a : b)
-      : devices[0];
-    const deviceId  = selected?.deviceId;
-    itemCamStream = await navigator.mediaDevices.getUserMedia({
-      video: { deviceId: deviceId ? { exact: deviceId } : undefined, width: { ideal: 1280 } }
+      : null;
+    devices.forEach((d, i) => {
+      const opt = document.createElement('option');
+      opt.value = d.deviceId;
+      opt.textContent = d.label || 'Camera ' + (i + 1);
+      if (bestBack ? d.deviceId === bestBack.deviceId : i === 0) opt.selected = true;
+      camSelect.appendChild(opt);
     });
-    const video = document.getElementById('item-video');
-    video.srcObject = itemCamStream;
-    await video.play();
-    // Request continuous autofocus if the camera supports it
-    const track = itemCamStream.getVideoTracks()[0];
-    const caps  = track.getCapabilities ? track.getCapabilities() : {};
-    if (caps.focusMode?.includes('continuous')) {
-      try { await track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }); } catch {}
-    }
-    document.getElementById('item-placeholder').style.display = 'none';
-    const camLabel = document.getElementById('item-cam-label');
-    camLabel.textContent = track.label || 'Camera';
-    camLabel.style.display = '';
-    btn.textContent = 'Stop Camera';
-    btn.onclick = stopItemCamera;
-    btn.disabled = false;
-    if (itemDetector) {
-      // Auto-scan available: show animated scan line and poll every 150 ms
-      document.getElementById('item-scan-line').style.display = '';
-      itemCamInterval = setInterval(async () => {
-        if (video.readyState < 2) return;
-        try {
-          const codes = await itemDetector.detect(video);
-          if (codes.length) onItemBarcode(codes[0].rawValue);
-        } catch {}
-      }, 150);
-    } else {
-      // No auto-scan in this browser — show camera for visual reference, ask user to type EAN
-      document.getElementById('item-scan-line').style.display = 'none';
-      document.getElementById('item-found-card').style.display = 'block';
-      showMsg('item-book-msg', 'Auto-scan not available in this browser — enter EAN manually below.', 'loading');
-    }
+    if (devices.length > 1) document.getElementById('item-cam-select-wrap').style.display = '';
+
+    await startItemCameraStream(camSelect.value);
   } catch(e) {
     btn.disabled = false;
     document.getElementById('item-found-card').style.display = 'block';
     showMsg('item-book-msg', 'Camera: ' + e.message, 'err');
+    setItemCamStatus('');
   }
 }
 
-// Stop the camera stream and reset the button to its initial state
+// Start (or switch to) a specific camera by deviceId; shared by init and the dropdown.
+async function startItemCameraStream(deviceId) {
+  if (itemCamStream) itemCamStream.getTracks().forEach(t => t.stop());
+  clearInterval(itemCamInterval); itemCamInterval = null;
+
+  setItemCamStatus('Opening camera…');
+  itemCamStream = await navigator.mediaDevices.getUserMedia({
+    video: {
+      deviceId: deviceId ? { exact: deviceId } : undefined,
+      width:  { ideal: 1920 },
+      height: { ideal: 1080 },
+    }
+  });
+
+  const video = document.getElementById('item-video');
+  video.srcObject = itemCamStream;
+  await video.play();
+  setItemCamStatus('Video playing (' + video.videoWidth + '×' + video.videoHeight + ')');
+
+  // Request continuous autofocus if the camera supports it
+  const track = itemCamStream.getVideoTracks()[0];
+  const caps  = track.getCapabilities ? track.getCapabilities() : {};
+  if (caps.focusMode?.includes('continuous')) {
+    try {
+      await track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] });
+      setItemCamStatus('Scanning… (autofocus on)');
+    } catch { setItemCamStatus('Scanning…'); }
+  } else {
+    setItemCamStatus('Scanning…');
+  }
+
+  document.getElementById('item-placeholder').style.display = 'none';
+  const camLabel = document.getElementById('item-cam-label');
+  camLabel.textContent = track.label || 'Camera';
+  camLabel.style.display = '';
+
+  const btn = document.getElementById('item-cam-btn');
+  btn.textContent = 'Stop Camera';
+  btn.onclick = stopItemCamera;
+  btn.disabled = false;
+
+  if (itemDetector) {
+    // Auto-scan available: show animated scan line and poll every 150 ms
+    document.getElementById('item-scan-line').style.display = '';
+    itemCamInterval = setInterval(async () => {
+      if (video.readyState < 2) return;
+      try {
+        const codes = await itemDetector.detect(video);
+        if (codes.length) onItemBarcode(codes[0].rawValue);
+      } catch {}
+    }, 150);
+  } else {
+    // No auto-scan in this browser — show camera for visual reference, ask user to type EAN
+    document.getElementById('item-scan-line').style.display = 'none';
+    document.getElementById('item-found-card').style.display = 'block';
+    showMsg('item-book-msg', 'Auto-scan not available in this browser — enter EAN manually below.', 'loading');
+  }
+}
+
+// Called when the user picks a different camera from the dropdown
+async function switchItemCamera() {
+  _lastScanned = null;
+  const deviceId = document.getElementById('item-cam-select').value;
+  try {
+    await startItemCameraStream(deviceId);
+  } catch(e) {
+    setItemCamStatus('Switch failed: ' + e.message);
+  }
+}
+
+// Stop the camera stream and reset the scan panel to its initial state
 function stopItemCamera() {
   clearInterval(itemCamInterval); itemCamInterval = null;
   if (itemCamStream) { itemCamStream.getTracks().forEach(t => t.stop()); itemCamStream = null; }
@@ -1404,6 +1471,8 @@ function stopItemCamera() {
   if (sl)  sl.style.display = 'none';
   const cl = document.getElementById('item-cam-label'); if (cl) cl.style.display = 'none';
   if (ph)  ph.style.display = '';
+  document.getElementById('item-cam-select-wrap').style.display = 'none';
+  setItemCamStatus('');
 }
 
 // Called by the scan loop when a barcode is detected; debounced by value for 4 s
