@@ -863,6 +863,56 @@ textarea { resize: none; min-height: 70px; }
               style="width:auto;margin:0;padding:10px 14px">Set</button>
           </div>
         </div>
+
+        <button class="btn btn-ghost" style="margin-top:8px" onclick="startEditItem()">Edit item</button>
+        <!-- Edit panel: same field layout as the Add panel, pre-filled with the current item -->
+        <div id="item-edit-panel" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <label class="form-label" style="margin:0">Edit item</label>
+            <button onclick="cancelEditItem()"
+              style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:11px;font-family:'Courier New',monospace;padding:0">Cancel</button>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Article</label>
+            <input type="text" id="edit-article" disabled style="opacity:0.6">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Description</label>
+            <input type="text" id="edit-name" placeholder="e.g. ACS580-01-04A1-4 1.5KW 400V 3PH">
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Manufacturer</label>
+              <input type="text" id="edit-mfr" placeholder="ABB, BALUFF…">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Category</label>
+              <input type="text" id="edit-cat" placeholder="Electrical…">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Unit</label>
+              <input type="text" id="edit-unit" placeholder="pcs, m, kg…">
+            </div>
+            <div class="form-group">
+              <label class="form-label">EAN</label>
+              <input type="text" id="edit-ean" placeholder="Optional">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Location Code</label>
+              <input type="text" id="edit-loc" placeholder="e.g. A1-02" style="text-transform:uppercase">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Min Stock</label>
+              <input type="number" id="edit-minstock" placeholder="0" min="0" step="1">
+            </div>
+          </div>
+          <div class="msg-box" id="item-edit-msg"></div>
+          <button class="btn btn-primary" onclick="doEditItem()">Save changes</button>
+        </div>
       </div>
 
       <!-- EAN not found: link to existing item -->
@@ -1108,11 +1158,11 @@ textarea { resize: none; min-height: 70px; }
           </tr>
           <tr style="border-bottom:1px solid var(--border)">
             <td style="padding:10px 0;color:var(--text3);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">Date</td>
-            <td style="padding:10px 0">09-07-2026 15:21</td>
+            <td style="padding:10px 0">09-07-2026 17:48</td>
           </tr>
           <tr>
             <td style="padding:10px 0;color:var(--text3);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">Message</td>
-            <td style="padding:10px 0;color:var(--text2)">Claude: Add "Add article" option to Items tab, wired to new addItem backend action</td>
+            <td style="padding:10px 0;color:var(--text2)">Claude: Add "Edit item" option to Items tab, wired to new updateItem backend action</td>
           </tr>
         </table>
       </div>
@@ -1122,7 +1172,7 @@ textarea { resize: none; min-height: 70px; }
 </div><!-- /shell -->
 
 <script>
-const API = "https://script.google.com/macros/s/AKfycby58N5vD2XMRNZMPtnEi2dQK9n6LC9veRjSi4ShWUScFmJOU5icFXb3JjIhs0UBQKR4/exec";
+const API = "https://script.google.com/macros/s/AKfycbwmvCJSifhQ5hX4vcM8qvFBcAcpXv_cfPEz803dr5yguE72EIkjM33bCKyTVoZtnKbk/exec";
 
 async function call(body) {
   const r = await fetch(API, {
@@ -1645,6 +1695,7 @@ async function lookupEan(ean) {
 // Populate the item-found card with the returned item data
 function showItemFound(item) {
   cancelSetLocation(); // reset loc mode if a new item is loaded mid-flow
+  cancelEditItem();    // reset edit panel if a new item is loaded mid-flow
   itemFoundData = item;
   document.getElementById('item-found-id').textContent  = item.item_id;
   const eanVal = itemCurrentEan || item.ean;
@@ -1723,6 +1774,60 @@ async function doAddItem() {
       .forEach(id => document.getElementById(id).value = '');
   } catch(e) {
     showMsg('item-add-msg', 'Error: ' + e.message, 'err');
+  }
+}
+
+// Show the edit panel, pre-filled with the currently loaded item's fields
+function startEditItem() {
+  if (!itemFoundData) return;
+  document.getElementById('edit-article').value   = itemFoundData.item_id  || '';
+  document.getElementById('edit-name').value      = itemFoundData.name     || '';
+  document.getElementById('edit-mfr').value       = itemFoundData.manufacturer || '';
+  document.getElementById('edit-cat').value       = itemFoundData.category || '';
+  document.getElementById('edit-unit').value      = itemFoundData.unit     || '';
+  document.getElementById('edit-ean').value       = itemFoundData.ean      || '';
+  document.getElementById('edit-loc').value       = itemFoundData.location || '';
+  document.getElementById('edit-minstock').value  = itemFoundData.min_stock || '';
+  document.getElementById('item-edit-msg').className = 'msg-box';
+  document.getElementById('item-edit-panel').style.display = '';
+}
+
+// Hide the edit panel without saving
+function cancelEditItem() {
+  const panel = document.getElementById('item-edit-panel');
+  if (panel) panel.style.display = 'none';
+}
+
+// API call: save the edited fields, then refresh the item-found card
+async function doEditItem() {
+  if (!itemFoundData) return;
+  showMsg('item-edit-msg', 'Saving…', 'loading');
+  try {
+    const res = await call({
+      action:       'updateItem',
+      item_id:      itemFoundData.item_id,
+      name:         document.getElementById('edit-name').value.trim(),
+      manufacturer: document.getElementById('edit-mfr').value.trim(),
+      category:     document.getElementById('edit-cat').value.trim(),
+      unit:         document.getElementById('edit-unit').value.trim(),
+      ean:          document.getElementById('edit-ean').value.trim(),
+      location:     document.getElementById('edit-loc').value.trim().toUpperCase(),
+      min_stock:    document.getElementById('edit-minstock').value,
+    });
+    if (!res.ok) throw new Error(res.error);
+    itemCurrentEan = document.getElementById('edit-ean').value.trim();
+    showItemFound({ ...itemFoundData,
+      name:         document.getElementById('edit-name').value.trim(),
+      manufacturer: document.getElementById('edit-mfr').value.trim(),
+      category:     document.getElementById('edit-cat').value.trim(),
+      unit:         document.getElementById('edit-unit').value.trim(),
+      ean:          itemCurrentEan,
+      location:     document.getElementById('edit-loc').value.trim().toUpperCase(),
+      min_stock:    document.getElementById('edit-minstock').value,
+    });
+    showMsg('item-book-msg', '✓ Item updated', 'ok');
+  } catch(e) {
+    showMsg('item-edit-msg', 'Error: ' + e.message, 'err');
   }
 }
 
