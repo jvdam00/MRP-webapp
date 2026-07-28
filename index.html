@@ -1094,7 +1094,7 @@ textarea { resize: none; min-height: 70px; }
     <div id="tab-push-docs" class="section">
       <div class="card">
         <div class="card-title">Import CSV</div>
-        <div class="card-sub">Expected columns: Type of file · Supplier · Order Number · Document number · Document Date · Position · Item ID · Quantity · Unit · Total Value</div>
+        <div class="card-sub">Expected columns: Type of file · Supplier · Order Number · Order Pos · Document number · Document Date · Item ID (External ID) · Quantity · Unit · Total Value</div>
         <div id="csv-dropzone"
           onclick="document.getElementById('csv-file-input').click()"
           ondragover="event.preventDefault();this.style.borderColor='var(--accent)';this.style.background='rgba(74,222,128,0.04)'"
@@ -1158,11 +1158,11 @@ textarea { resize: none; min-height: 70px; }
           </tr>
           <tr style="border-bottom:1px solid var(--border)">
             <td style="padding:10px 0;color:var(--text3);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">Date</td>
-            <td style="padding:10px 0">09-07-2026 17:48</td>
+            <td style="padding:10px 0">28-07-2026 16:53</td>
           </tr>
           <tr>
             <td style="padding:10px 0;color:var(--text3);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">Message</td>
-            <td style="padding:10px 0;color:var(--text2)">Claude: Add "Edit item" option to Items tab, wired to new updateItem backend action</td>
+            <td style="padding:10px 0;color:var(--text2)">Claude: Fix CSV import column mapping in pushCsv() — Order Pos comes before Document number/Date, not after</td>
           </tr>
         </table>
       </div>
@@ -1435,8 +1435,8 @@ async function pushCsv() {
   const btn = document.getElementById('pd-btn');
   btn.disabled = true;
 
-  // Col indices match CSV: Type;Supplier;Order Number;Document number;Document Date;Position;Item ID;Quantity;Unit;Total Value
-  const COL = { type:0, supplier:1, order_number:2, doc_number:3, doc_date:4, position:5, item_id:6, qty:7, unit:8, total_value:9 };
+  // Col indices match CSV: Type;Supplier;Order Number;Order Pos;Document number;Document Date;Item ID;Quantity;Unit;Total Value
+  const COL = { type:0, supplier:1, order_number:2, position:3, doc_number:4, doc_date:5, item_id:6, qty:7, unit:8, total_value:9 };
   const docs = {};
   for (const row of csvRows) {
     // Group by type + document number so packlists and invoices are separate entries
