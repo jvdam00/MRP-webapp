@@ -357,7 +357,7 @@ body {
 }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 
-input[type=text], input[type=number], select, textarea {
+input[type=text], input[type=number], input[type=password], select, textarea {
   width: 100%; padding: 10px 12px;
   background: var(--surface); color: var(--text);
   border: 1px solid var(--border);
@@ -571,10 +571,30 @@ textarea { resize: none; min-height: 70px; }
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* ── LOGIN / VERSION GATE (shown until the API accepts password + version) ── */
+.gate { min-height: 100dvh; display: flex; align-items: center; justify-content: center; padding: 16px; }
+.gate .card { width: 100%; max-width: 360px; }
+.gate-version { font-size: 11px; color: var(--text3); margin-top: 10px; text-align: center; }
 </style>
 </head>
 <body>
-<div class="shell">
+<!-- Login / outdated screen; the app (.shell) stays hidden until access is granted -->
+<div class="gate" id="gate">
+  <div class="card">
+    <div class="topbar-title" style="margin-bottom:12px">MRP<span>.</span></div>
+    <div id="gate-login">
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input type="password" id="gate-pw" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+      </div>
+      <button class="btn btn-primary" id="gate-btn" onclick="doLogin()">Log in</button>
+    </div>
+    <div class="msg-box" id="gate-msg"></div>
+    <div class="gate-version" id="gate-version"></div>
+  </div>
+</div>
+
+<div class="shell" id="app-shell" style="display:none">
 
   <!-- ── MOBILE TOPBAR ─────────────────────────────────────── -->
   <div class="topbar">
@@ -1171,12 +1191,16 @@ textarea { resize: none; min-height: 70px; }
             <td style="padding:10px 0;font-weight:500">VDA003 – Eigen MRP</td>
           </tr>
           <tr style="border-bottom:1px solid var(--border)">
+            <td style="padding:10px 0;color:var(--text3);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">Version</td>
+            <td style="padding:10px 0" id="info-version">—</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border)">
             <td style="padding:10px 0;color:var(--text3);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">Date</td>
-            <td style="padding:10px 0">16-11-2026 15:30</td>
+            <td style="padding:10px 0">16-11-2026 15:57</td>
           </tr>
           <tr>
             <td style="padding:10px 0;color:var(--text3);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">Message</td>
-            <td style="padding:10px 0;color:var(--text2)">Claude: Move 'Delivered today' button into packlist header so item lines use full width on mobile</td>
+            <td style="padding:10px 0;color:var(--text2)">Claude: v1.0.0 - Add password login and webapp version check (one fixed API deployment)</td>
           </tr>
         </table>
       </div>
@@ -1188,17 +1212,95 @@ textarea { resize: none; min-height: 70px; }
 <script>
 const API = "https://script.google.com/macros/s/AKfycby6CkaLgKRXvUoRAQviIIch6f6OO37NFt7r8oIqFBoKN4NN2urOXzstIYgyJJlFkrKH/exec";
 
+// Webapp version — must equal WEBAPP_VERSION in Code.js. Bump both on every webapp change.
+const APP_VERSION = "1.0.0";
+// localStorage key under which the API password is remembered on this device
+const TOKEN_KEY = "mrp_api_token";
+
+// Remembered password helpers (localStorage can throw in private mode → treat as empty)
+function getToken()   { try { return localStorage.getItem(TOKEN_KEY) || ""; } catch (e) { return ""; } }
+function setToken(t)  { try { localStorage.setItem(TOKEN_KEY, t); } catch (e) {} }
+function clearToken() { try { localStorage.removeItem(TOKEN_KEY); } catch (e) {} }
+
+// Password typed in this session (used when localStorage is unavailable)
+let sessionToken = "";
+
+// POST an action to the API; password + version are added to every call
 async function call(body) {
   const r = await fetch(API, {
     method: "POST",
     headers: { "Content-Type": "text/plain" },
-    body: JSON.stringify(body),
+    body: JSON.stringify({ ...body, token: sessionToken || getToken(), app_version: APP_VERSION }),
     redirect: "follow"
   });
   if (!r.ok) throw new Error("HTTP " + r.status);
   const json = await r.json();
+  // Access refused (wrong password / version mismatch) → back to the gate, stop the caller
+  if (json.code) {
+    handleAccessError(json);
+    const err = new Error(json.error);
+    err.access = true;   // lets tryLogin tell access errors apart from connection errors
+    throw err;
+  }
   // Apps Script wraps in { ok, data } — pass through as-is
   return json;
+}
+
+// ── LOGIN / VERSION GATE ────────────────────────────────────
+// Show the gate (hide the app) with an optional message; login form only when asked
+function showGate(msg, type, showLogin) {
+  document.getElementById("app-shell").style.display = "none";
+  document.getElementById("gate").style.display = "";
+  document.getElementById("gate-login").style.display = showLogin ? "" : "none";
+  document.getElementById("gate-version").textContent = "Version " + APP_VERSION;
+  const box = document.getElementById("gate-msg");
+  if (msg) showMsg("gate-msg", msg, type); else box.className = "msg-box";
+}
+
+// React to an access error from the API
+function handleAccessError(json) {
+  if (json.code === "OUTDATED") {
+    // Only a message: an outdated page must not be usable
+    showGate("This webpage version (" + APP_VERSION + ") is outdated. Download the latest version (" + json.server_version + ") and open that one.", "err", false);
+  } else if (json.code === "BACKEND_OUTDATED") {
+    showGate("The server runs an older version (" + json.server_version + ") than this webpage (" + APP_VERSION + "). The backend still has to be deployed.", "err", false);
+  } else {
+    // AUTH: forget the stored password and ask again
+    clearToken(); sessionToken = "";
+    showGate("Wrong password.", "err", true);
+  }
+}
+
+// Ask the API whether password + version are accepted; open the app when they are
+async function tryLogin(token) {
+  sessionToken = token;
+  showMsg("gate-msg", "Checking...", "loading");
+  try {
+    await call({ action: "login" });
+  } catch (e) {
+    // Access errors already updated the gate; anything else is a connection problem
+    if (!e.access) showGate("Cannot reach the server: " + e.message, "err", true);
+    return;
+  }
+  setToken(token);
+  document.getElementById("gate").style.display = "none";
+  document.getElementById("app-shell").style.display = "";
+  setSyncStatus(true);
+}
+
+// Login button / Enter in the password field
+function doLogin() {
+  const pw = document.getElementById("gate-pw").value;
+  if (!pw) { showMsg("gate-msg", "Enter the password.", "err"); return; }
+  tryLogin(pw);
+}
+
+// On page load: log in with the remembered password, or show the login form
+function initGate() {
+  document.getElementById("info-version").textContent = APP_VERSION;
+  const stored = getToken();
+  if (stored) { showGate("", "", false); tryLogin(stored); }
+  else showGate("", "", true);
 }
 
 function switchTab(name, btn) {
@@ -1595,11 +1697,11 @@ async function pushCsv() {
   btn.disabled = false;
 }
 
-// Ping the API with a harmless GET to verify connectivity and update the sync indicator
+// Ping the API with the login action: verifies connectivity, password and version
 async function refreshAll() {
   try {
-    const res = await fetch(API, { method: "GET", redirect: "follow" });
-    setSyncStatus(res.ok);
+    await call({ action: "login" });
+    setSyncStatus(true);
   } catch(e) {
     setSyncStatus(false);
   }
@@ -2371,7 +2473,7 @@ async function executeMoveItems() {
   }
 }
 
-refreshAll();
+initGate();  // start at the login / version gate instead of opening the app directly
 
 // ── EXPORT / DOWNLOAD ──────────────────────────────────────────
 let exportData = {};
@@ -2380,7 +2482,8 @@ async function fetchExportData() {
   showMsg('sheet-dl-msg', 'Bezig met ophalen…', 'loading');
   document.getElementById('export-results').style.display = 'none';
   try {
-    const res = await fetch(API + '?export=all', { redirect: 'follow' });
+    // Export endpoint is a GET and needs the password as a query parameter
+    const res = await fetch(API + '?export=all&token=' + encodeURIComponent(sessionToken || getToken()), { redirect: 'follow' });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const json = await res.json();
     if (!json.ok) throw new Error(json.error || 'Onbekende fout');
