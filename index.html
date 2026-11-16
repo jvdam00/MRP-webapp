@@ -1172,11 +1172,11 @@ textarea { resize: none; min-height: 70px; }
           </tr>
           <tr style="border-bottom:1px solid var(--border)">
             <td style="padding:10px 0;color:var(--text3);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">Date</td>
-            <td style="padding:10px 0">16-11-2026 11:33</td>
+            <td style="padding:10px 0">16-11-2026 15:24</td>
           </tr>
           <tr>
             <td style="padding:10px 0;color:var(--text3);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">Message</td>
-            <td style="padding:10px 0;color:var(--text2)">Claude: Add outstanding packlists list with 'Delivered today' button to Receive tab</td>
+            <td style="padding:10px 0;color:var(--text2)">Claude: Show MATERIAL_IN # Description on outstanding packlist lines</td>
           </tr>
         </table>
       </div>
@@ -1186,7 +1186,7 @@ textarea { resize: none; min-height: 70px; }
 </div><!-- /shell -->
 
 <script>
-const API = "https://script.google.com/macros/s/AKfycbzN7xckFvYFoDXdlgz7C3ayTBrSqXJtEXAWRJ1UMHW-uK9VB5LQAxjYUN02rl3uHsM0/exec";
+const API = "https://script.google.com/macros/s/AKfycby6CkaLgKRXvUoRAQviIIch6f6OO37NFt7r8oIqFBoKN4NN2urOXzstIYgyJJlFkrKH/exec";
 
 async function call(body) {
   const r = await fetch(API, {
@@ -1236,18 +1236,19 @@ async function loadOutstandingPacklists() {
   }
 }
 
-// True when the filter text appears in the packlist header fields or any of its item IDs
+// True when the filter text appears in the packlist header fields or any of its item IDs / descriptions
 function packlistMatches(pl, q) {
   if (!q) return true;
   const haystack = [pl.supplier, pl.order_number, pl.packlist_number, pl.packlist_date]
-    .concat(pl.lines.map(l => l.external_id + " " + l.internal_id)).join(" ").toLowerCase();
+    .concat(pl.lines.map(l => l.external_id + " " + l.internal_id + " " + (l.description || ""))).join(" ").toLowerCase();
   return haystack.includes(q);
 }
 
-// Render one line of a packlist (position, item IDs, quantity)
+// Render one line of a packlist (position, # Description from MATERIAL_IN, quantity).
+// Falls back to the item ID when the description formula returns nothing.
 function packlistLineHtml(l) {
   return '<div class="item-result-meta" style="padding:3px 0">' +
-    escHtml(l.position) + ' · ' + escHtml(l.internal_id || l.external_id) +
+    escHtml(l.position) + ' · ' + escHtml(l.description || l.internal_id || l.external_id) +
     ' — ' + escHtml(l.qty) + ' ' + escHtml(l.unit) + '</div>';
 }
 
