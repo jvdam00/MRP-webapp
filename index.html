@@ -1172,11 +1172,11 @@ textarea { resize: none; min-height: 70px; }
           </tr>
           <tr style="border-bottom:1px solid var(--border)">
             <td style="padding:10px 0;color:var(--text3);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">Date</td>
-            <td style="padding:10px 0">16-11-2026 15:24</td>
+            <td style="padding:10px 0">16-11-2026 15:30</td>
           </tr>
           <tr>
             <td style="padding:10px 0;color:var(--text3);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">Message</td>
-            <td style="padding:10px 0;color:var(--text2)">Claude: Show MATERIAL_IN # Description on outstanding packlist lines</td>
+            <td style="padding:10px 0;color:var(--text2)">Claude: Move 'Delivered today' button into packlist header so item lines use full width on mobile</td>
           </tr>
         </table>
       </div>
@@ -1267,18 +1267,23 @@ function renderOutstandingPacklists() {
     return;
   }
 
+  // Each packlist: header row (supplier/order + packlist number left, button right),
+  // then the collapsible item lines below it using the full card width
   list.innerHTML = rows.map(({ pl, i }) =>
-    '<div class="item-result-row" style="cursor:default;align-items:flex-start">' +
-      '<div style="flex:1;min-width:0">' +
-        '<div class="item-result-id">' + escHtml(pl.supplier) + ' · order ' + escHtml(pl.order_number) + '</div>' +
-        '<div class="item-result-name">Packlist ' + escHtml(pl.packlist_number) + '</div>' +
-        '<details><summary class="item-result-meta" style="cursor:pointer">' +
-          escHtml(pl.packlist_date) + ' · ' + pl.lines.length + ' line(s)</summary>' +
-          pl.lines.map(packlistLineHtml).join("") +
-        '</details>' +
+    '<div class="item-result-row" style="cursor:default;display:block">' +
+      '<div style="display:flex;align-items:center;gap:8px">' +
+        '<div style="flex:1;min-width:0">' +
+          '<div class="item-result-id">' + escHtml(pl.supplier) + ' · order ' + escHtml(pl.order_number) + '</div>' +
+          '<div class="item-result-name" style="white-space:nowrap">Packlist ' + escHtml(pl.packlist_number) + '</div>' +
+        '</div>' +
+        // Compact button (no extra letter-spacing) so the header fits on small phones
+        '<button class="btn btn-primary" style="width:auto;margin:0;padding:7px 10px;font-size:11px;letter-spacing:0.02em;flex-shrink:0" ' +
+          'onclick="markPacklistDelivered(' + i + ', this)">Delivered today</button>' +
       '</div>' +
-      '<button class="btn btn-primary" style="width:auto;margin:0;padding:7px 12px;font-size:12px;flex-shrink:0" ' +
-        'onclick="markPacklistDelivered(' + i + ', this)">Delivered today</button>' +
+      '<details style="margin-top:4px"><summary class="item-result-meta" style="cursor:pointer">' +
+        escHtml(pl.packlist_date) + ' · ' + pl.lines.length + ' line(s)</summary>' +
+        pl.lines.map(packlistLineHtml).join("") +
+      '</details>' +
     '</div>'
   ).join("");
 }
