@@ -672,6 +672,20 @@ textarea { resize: none; min-height: 70px; }
 
     <!-- RECEIVE / BOOK IN -->
     <div id="tab-book-in" class="section">
+      <!-- Outstanding packlists: Packlist Date filled, Date Delivered empty (MATERIAL_IN) -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Outstanding packlists</div>
+          <button class="btn btn-ghost" style="width:auto;margin:0;padding:6px 14px" onclick="loadOutstandingPacklists()">Refresh</button>
+        </div>
+        <div class="card-sub">Packlists with a packlist date that are not marked as delivered yet.</div>
+        <div class="form-group">
+          <input type="text" id="pl-filter" placeholder="Filter on supplier, order, packlist or item" oninput="renderOutstandingPacklists()">
+        </div>
+        <div id="pl-list"><div class="empty">—</div></div>
+        <div class="msg-box" id="pl-msg"></div>
+      </div>
+
       <div class="ai-hint">💡 Tip: forward a packing list or invoice to Claude in this chat to book it in automatically.</div>
       <div class="card">
         <div class="card-title">Receive stock</div>
@@ -1158,11 +1172,11 @@ textarea { resize: none; min-height: 70px; }
           </tr>
           <tr style="border-bottom:1px solid var(--border)">
             <td style="padding:10px 0;color:var(--text3);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">Date</td>
-            <td style="padding:10px 0">12-09-2026 01:08</td>
+            <td style="padding:10px 0">16-11-2026 11:33</td>
           </tr>
           <tr>
             <td style="padding:10px 0;color:var(--text3);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">Message</td>
-            <td style="padding:10px 0;color:var(--text2)">Claude: Add idempotent booking (DOCUMENTS sheet + lock) and getBookingStatus action</td>
+            <td style="padding:10px 0;color:var(--text2)">Claude: Add outstanding packlists list with 'Delivered today' button to Receive tab</td>
           </tr>
         </table>
       </div>
@@ -1172,7 +1186,7 @@ textarea { resize: none; min-height: 70px; }
 </div><!-- /shell -->
 
 <script>
-const API = "https://script.google.com/macros/s/AKfycbz-4ZtrJC814NjH5LFV9n-kvGroy9MmiL8I1AsLya3LPrWIzPDUvgKt_rUZuIFPD_Hn/exec";
+const API = "https://script.google.com/macros/s/AKfycbzN7xckFvYFoDXdlgz7C3ayTBrSqXJtEXAWRJ1UMHW-uK9VB5LQAxjYUN02rl3uHsM0/exec";
 
 async function call(body) {
   const r = await fetch(API, {
@@ -1195,6 +1209,101 @@ function switchTab(name, btn) {
   if (name !== 'items')     stopItemCamera();       // release camera when leaving Items tab
   if (name !== 'locations') stopLocCamera();        // release camera when leaving Locations tab
   if (name === 'items')     loadProjectsForItems(); // populate project datalist on enter
+  if (name === 'book-in')   loadOutstandingPacklists(); // refresh outstanding packlists on enter
+}
+
+// Escape text for safe insertion into innerHTML
+function escHtml(s) {
+  return String(s ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+}
+
+// ── OUTSTANDING PACKLISTS (Receive tab) ─────────────────────
+// Last list fetched from the API; filtering and re-rendering work on this copy
+let outstandingPacklists = [];
+
+// Fetch packlists with a Packlist Date but no Date Delivered from MATERIAL_IN
+async function loadOutstandingPacklists() {
+  const list = document.getElementById("pl-list");
+  list.innerHTML = '<div class="empty"><span class="spinner"></span>Loading...</div>';
+  try {
+    const res = await call({ action: "getOutstandingPacklists" });
+    if (!res.ok) throw new Error(res.error);
+    if (res.data && res.data.error) throw new Error(res.data.error); // e.g. "Unknown action" on an old deployment
+    outstandingPacklists = res.data;
+    renderOutstandingPacklists();
+  } catch (e) {
+    list.innerHTML = '<div class="empty">Error: ' + escHtml(e.message) + '</div>';
+  }
+}
+
+// True when the filter text appears in the packlist header fields or any of its item IDs
+function packlistMatches(pl, q) {
+  if (!q) return true;
+  const haystack = [pl.supplier, pl.order_number, pl.packlist_number, pl.packlist_date]
+    .concat(pl.lines.map(l => l.external_id + " " + l.internal_id)).join(" ").toLowerCase();
+  return haystack.includes(q);
+}
+
+// Render one line of a packlist (position, item IDs, quantity)
+function packlistLineHtml(l) {
+  return '<div class="item-result-meta" style="padding:3px 0">' +
+    escHtml(l.position) + ' · ' + escHtml(l.internal_id || l.external_id) +
+    ' — ' + escHtml(l.qty) + ' ' + escHtml(l.unit) + '</div>';
+}
+
+// Draw the (filtered) outstanding packlists, each with a "Delivered today" button
+function renderOutstandingPacklists() {
+  const list = document.getElementById("pl-list");
+  const q    = document.getElementById("pl-filter").value.trim().toLowerCase();
+
+  // Keep the original index so the button refers to the right entry after filtering
+  const rows = outstandingPacklists
+    .map((pl, i) => ({ pl, i }))
+    .filter(({ pl }) => packlistMatches(pl, q));
+
+  if (!rows.length) {
+    list.innerHTML = '<div class="empty">' + (outstandingPacklists.length ? 'No packlists match the filter.' : 'No outstanding packlists.') + '</div>';
+    return;
+  }
+
+  list.innerHTML = rows.map(({ pl, i }) =>
+    '<div class="item-result-row" style="cursor:default;align-items:flex-start">' +
+      '<div style="flex:1;min-width:0">' +
+        '<div class="item-result-id">' + escHtml(pl.supplier) + ' · order ' + escHtml(pl.order_number) + '</div>' +
+        '<div class="item-result-name">Packlist ' + escHtml(pl.packlist_number) + '</div>' +
+        '<details><summary class="item-result-meta" style="cursor:pointer">' +
+          escHtml(pl.packlist_date) + ' · ' + pl.lines.length + ' line(s)</summary>' +
+          pl.lines.map(packlistLineHtml).join("") +
+        '</details>' +
+      '</div>' +
+      '<button class="btn btn-primary" style="width:auto;margin:0;padding:7px 12px;font-size:12px;flex-shrink:0" ' +
+        'onclick="markPacklistDelivered(' + i + ', this)">Delivered today</button>' +
+    '</div>'
+  ).join("");
+}
+
+// Set Date Delivered = today (server date) on all rows of the chosen packlist
+async function markPacklistDelivered(i, btn) {
+  const pl = outstandingPacklists[i];
+  const todayTxt = new Date().toLocaleDateString("nl-NL", { day: "2-digit", month: "2-digit", year: "numeric" });
+  if (!confirm("Mark packlist " + pl.packlist_number + " (" + pl.supplier + ", order " + pl.order_number + ") as delivered on " + todayTxt + "?")) return;
+
+  btn.disabled = true;
+  showMsg("pl-msg", "Saving...", "loading");
+  try {
+    const res = await call({
+      action: "markPacklistDelivered",
+      supplier: pl.supplier, order_number: pl.order_number, packlist_number: pl.packlist_number,
+    });
+    if (!res.ok) throw new Error(res.error);
+    if (res.data && res.data.error) throw new Error(res.data.error);
+    showMsg("pl-msg", "Packlist " + pl.packlist_number + " delivered on " + res.data.delivered_date + " (" + res.data.updated + " line(s)).", "ok");
+    outstandingPacklists.splice(i, 1);  // drop it locally instead of a full reload
+    renderOutstandingPacklists();
+  } catch (e) {
+    btn.disabled = false;
+    showMsg("pl-msg", "Error: " + e.message, "err");
+  }
 }
 
 function fmtEur(n) {
